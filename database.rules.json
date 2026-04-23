@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "stream": {
+      ".read": true,
+      ".write": true
+    },
+    "chat": {
+      "messages": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

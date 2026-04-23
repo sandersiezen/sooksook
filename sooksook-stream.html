@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SookSook Shoots Stuff — LIVE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00e5ff;
+    --cyan-dim: #00b8cc;
+    --cyan-dark: #003d44;
+    --slate: #0a1520;
+    --slate-mid: #0d1f2d;
+    --slate-light: #152535;
+    --slate-border: #1e3448;
+    --pink: #ff6eb4;
+    --pink-dim: #c4507f;
+    --gold: #ffd700;
+    --red-live: #ff3b3b;
+    --text-dim: #4a7a8a;
+    --text-mid: #7ab8c8;
+    --text-bright: #b8e8f0;
+    --kim: #ff9f43;
+    --vesk: #ff6b6b;
+    --bot: #444;
+    --anon: #2a4a5a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--slate);
+    font-family: 'Exo 2', sans-serif;
+    color: var(--text-bright);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: linear-gradient(90deg, #050d14 0%, var(--slate-mid) 40%, #050d14 100%);
+    border-bottom: 1px solid var(--slate-border);
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 10;
+  }
+
+  .topbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.4;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--red-live);
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red-live);
+    box-shadow: 0 0 8px var(--red-live);
+    animation: pulse-red 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--red-live); }
+    50% { opacity: 0.4; box-shadow: 0 0 3px var(--red-live); }
+  }
+
+  .channel-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    text-shadow: 0 0 20px rgba(0,229,255,0.5);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .viewer-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .viewer-count {
+    color: var(--cyan-dim);
+    font-size: 12px;
+  }
+
+  .viewer-count span {
+    color: var(--cyan);
+    font-weight: bold;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--slate);
+  }
+
+  /* ── SCOPE VIEW ── */
+  .scope-container {
+    flex: 1;
+    position: relative;
+    background: #000;
+    border: 1px solid var(--slate-border);
+    overflow: hidden;
+    border-radius: 4px;
+  }
+
+  .scope-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: 
+      radial-gradient(ellipse at center, #0a1a10 0%, #000 70%);
+  }
+
+  /* Scope vignette */
+  .scope-inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.9) 100%);
+    z-index: 2;
+  }
+
+  /* Crosshair */
+  .crosshair {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    width: 200px; height: 200px;
+  }
+
+  .crosshair-h, .crosshair-v {
+    position: absolute;
+    background: rgba(0, 229, 255, 0.7);
+  }
+
+  .crosshair-h {
+    width: 100%; height: 1px;
+    top: 50%; left: 0;
+    transform: translateY(-50%);
+    box-shadow: 0 0 4px var(--cyan);
+  }
+
+  .crosshair-v {
+    width: 1px; height: 100%;
+    left: 50%; top: 0;
+    transform: translateX(-50%);
+    box-shadow: 0 0 4px var(--cyan);
+  }
+
+  /* Center gap */
+  .crosshair-gap {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px; height: 30px;
+    background: transparent;
+    border: 1px solid rgba(0,229,255,0.5);
+    border-radius: 50%;
+    z-index: 6;
+    box-shadow: 0 0 8px rgba(0,229,255,0.3), inset 0 0 8px rgba(0,229,255,0.1);
+  }
+
+  /* Mil-dot reticle marks */
+  .mil-dot {
+    position: absolute;
+    width: 4px; height: 4px;
+    background: rgba(0,229,255,0.6);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+  }
+
+  /* Scope HUD overlays */
+  .scope-hud {
+    position: absolute;
+    z-index: 8;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,229,255,0.7);
+    text-shadow: 0 0 6px rgba(0,229,255,0.5);
+  }
+
+  .scope-hud.tl { top: 12px; left: 12px; }
+  .scope-hud.tr { top: 12px; right: 12px; text-align: right; }
+  .scope-hud.bl { bottom: 12px; left: 12px; }
+  .scope-hud.br { bottom: 12px; right: 12px; text-align: right; }
+
+  .scope-hud div { line-height: 1.6; }
+  .scope-hud .label { color: rgba(0,229,255,0.4); font-size: 9px; }
+  .scope-hud .value { color: rgba(0,229,255,0.9); }
+
+  /* Aim reticle target ghost */
+  .target-ghost {
+    position: absolute;
+    top: 42%; left: 55%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    opacity: 0.15;
+  }
+
+  .target-silhouette {
+    width: 40px; height: 60px;
+    border: 1px solid var(--cyan);
+    border-radius: 20px 20px 5px 5px;
+    position: relative;
+  }
+
+  .target-silhouette::before {
+    content: '';
+    position: absolute;
+    top: -18px; left: 50%;
+    transform: translateX(-50%);
+    width: 20px; height: 20px;
+    border: 1px solid var(--cyan);
+    border-radius: 50%;
+  }
+
+  /* Scope label */
+  .scope-label {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: rgba(0,229,255,0.3);
+    z-index: 9;
+    white-space: nowrap;
+  }
+
+  /* Scan line effect */
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    z-index: 7;
+    pointer-events: none;
+  }
+
+  /* ── FACE CAM ── */
+  .facecam-container {
+    height: 160px;
+    position: relative;
+    border: 1px solid var(--slate-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--slate-mid);
+    flex-shrink: 0;
+  }
+
+  .facecam-inner {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .facecam-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Skittermander figure */
+  .skitter-figure {
+    position: relative;
+    z-index: 3;
+  }
+
+  .skitter-body {
+    width: 50px; height: 65px;
+    background: linear-gradient(160deg, #d4608a 0%, #b84070 50%, #8a2550 100%);
+    border-radius: 25px 25px 15px 15px;
+    position: relative;
+    margin: 0 auto;
+  }
+
+  .skitter-head {
+    width: 42px; height: 38px;
+    background: linear-gradient(160deg, #e070a0 0%, #c85080 100%);
+    border-radius: 50% 50% 40% 40%;
+    margin: 0 auto;
+    position: relative;
+    top: 4px;
+  }
+
+  /* Spiky hair */
+  .skitter-hair {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 20px;
+  }
+
+  .spike {
+    position: absolute;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(180deg, #e888b8 0%, #c05080 100%);
+    border-radius: 3px 3px 0 0;
+    transform-origin: bottom center;
+  }
+
+  .skitter-eyes {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .eye {
+    width: 8px; height: 8px;
+    background: #fff;
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .eye::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 4px; height: 4px;
+    background: #111;
+    border-radius: 50%;
+  }
+
+  /* Arms - multiple */
+  .arm {
+    position: absolute;
+    width: 8px;
+    height: 35px;
+    background: linear-gradient(180deg, #c05070 0%, #a03858 100%);
+    border-radius: 4px;
+    transform-origin: top center;
+  }
+
+  /* Phone arm */
+  .arm-phone {
+    right: -35px; top: 5px;
+    transform: rotate(25deg);
+  }
+
+  .phone {
+    position: absolute;
+    bottom: -12px; left: -8px;
+    width: 22px; height: 16px;
+    background: #111;
+    border: 1px solid var(--cyan);
+    border-radius: 3px;
+    box-shadow: 0 0 6px rgba(0,229,255,0.4);
+  }
+
+  .phone::after {
+    content: '●';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 6px;
+    color: var(--red-live);
+    text-shadow: 0 0 4px var(--red-live);
+  }
+
+  .arm-left1 { left: -30px; top: 0px; transform: rotate(-20deg); }
+  .arm-left2 { left: -40px; top: 15px; transform: rotate(-35deg); }
+  .arm-right2 { right: -40px; top: 15px; transform: rotate(35deg); }
+
+  /* Signal quality bar */
+  .signal-bars {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+  }
+
+  .signal-bar {
+    width: 4px;
+    background: var(--cyan-dim);
+    border-radius: 1px;
+    opacity: 0.6;
+  }
+
+  .signal-bar:nth-child(1) { height: 5px; opacity: 1; }
+  .signal-bar:nth-child(2) { height: 8px; opacity: 0.9; }
+  .signal-bar:nth-child(3) { height: 11px; opacity: 0.7; }
+  .signal-bar:nth-child(4) { height: 14px; opacity: 0.2; }
+
+  .facecam-label {
+    position: absolute;
+    top: 6px; left: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,229,255,0.5);
+    letter-spacing: 1px;
+    z-index: 5;
+  }
+
+  .facecam-status {
+    position: absolute;
+    top: 6px; right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 5;
+  }
+
+  .facecam-scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0,0,0,0.1) 3px,
+      rgba(0,0,0,0.1) 6px
+    );
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* Static noise corners */
+  .noise-overlay {
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 0% 0%, rgba(0,229,255,0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(0,229,255,0.03) 0%, transparent 50%);
+    z-index: 3;
+  }
+
+  /* ── CHAT PANEL ── */
+  .chat-panel {
+    background: var(--slate-mid);
+    border-left: 1px solid var(--slate-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--slate-border);
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--cyan-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(90deg, var(--slate-mid), var(--slate-light));
+    position: relative;
+  }
+
+  .chat-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+    opacity: 0.3;
+  }
+
+  .chat-sookers {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 3px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--slate-border); border-radius: 2px; }
+
+  .msg {
+    padding: 4px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    transition: background 0.1s;
+  }
+
+  .msg:hover { background: rgba(255,255,255,0.02); }
+
+  .msg-name {
+    font-weight: 600;
+    font-size: 11px;
+    margin-right: 4px;
+  }
+
+  .msg-name.kim { color: var(--kim); }
+  .msg-name.vesk { color: var(--vesk); }
+  .msg-name.skitter { color: #7bed9f; }
+  .msg-name.bot { color: var(--bot); }
+  .msg-name.anon { color: #3a6a7a; }
+  .msg-name.mod { color: var(--cyan); }
+
+  .msg-text { color: var(--text-bright); font-size: 12px; }
+  .msg-text.dim { color: #3a5a6a; font-size: 11px; }
+
+  /* Donation message */
+  .donation-msg {
+    margin: 4px 6px;
+    padding: 6px 10px;
+    background: linear-gradient(90deg, rgba(255,159,67,0.1), rgba(255,159,67,0.05));
+    border-left: 2px solid var(--kim);
+    border-radius: 0 3px 3px 0;
+  }
+
+  .donation-amount {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: var(--kim);
+    font-weight: 700;
+  }
+
+  .donation-text {
+    font-size: 11px;
+    color: rgba(255,159,67,0.8);
+    margin-top: 1px;
+  }
+
+  /* System message */
+  .system-msg {
+    padding: 3px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* Chat input bar */
+  .chat-input {
+    padding: 8px 10px;
+    border-top: 1px solid var(--slate-border);
+    background: var(--slate);
+  }
+
+  .chat-input-box {
+    width: 100%;
+    background: var(--slate-light);
+    border: 1px solid var(--slate-border);
+    border-radius: 3px;
+    padding: 6px 10px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 11px;
+    color: var(--text-dim);
+    outline: none;
+  }
+
+  /* ── BOTTOM BAR ── */
+  .bottombar {
+    background: linear-gradient(90deg, #050d14 0%, var(--slate-mid) 40%, #050d14 100%);
+    border-top: 1px solid var(--slate-border);
+    padding: 5px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  .bottombar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.3;
+  }
+
+  .bottom-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .crosshair-logo {
+    width: 20px; height: 20px;
+    position: relative;
+    opacity: 0.6;
+  }
+
+  .crosshair-logo::before, .crosshair-logo::after {
+    content: '';
+    position: absolute;
+    background: var(--cyan);
+  }
+
+  .crosshair-logo::before {
+    width: 100%; height: 1px;
+    top: 50%; left: 0;
+    transform: translateY(-50%);
+  }
+
+  .crosshair-logo::after {
+    width: 1px; height: 100%;
+    left: 50%; top: 0;
+    transform: translateX(-50%);
+  }
+
+  .crosshair-circle {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px; height: 10px;
+    border: 1px solid var(--cyan);
+    border-radius: 50%;
+  }
+
+  .bottom-channel {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .relay-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .relay-badge-icon {
+    width: 14px; height: 14px;
+    border: 1px solid var(--cyan-dim);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: var(--cyan-dim);
+    opacity: 0.6;
+  }
+
+  .bottom-right {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  /* ── HOLOGRAPHIC GRID BG ── */
+  .holo-grid {
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Animate chat scroll */
+  @keyframes scrollUp {
+    from { transform: translateY(0); }
+    to { transform: translateY(-20px); }
+  }
+
+  /* Glow pulse on scope */
+  .scope-container {
+    box-shadow: 0 0 0 1px rgba(0,229,255,0.1), inset 0 0 30px rgba(0,0,0,0.5);
+    animation: scope-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes scope-glow {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(0,229,255,0.1); }
+    50% { box-shadow: 0 0 0 1px rgba(0,229,255,0.25), 0 0 15px rgba(0,229,255,0.05); }
+  }
+
+  /* Kim donation pulse */
+  .donation-msg {
+    animation: donation-glow 0.5s ease-out;
+  }
+
+  @keyframes donation-glow {
+    from { background: rgba(255,159,67,0.3); }
+    to { background: linear-gradient(90deg, rgba(255,159,67,0.1), rgba(255,159,67,0.05)); }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="holo-grid"></div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    LIVE
+  </div>
+  <div class="channel-name">SookSook Shoots Stuff</div>
+  <div class="viewer-info">
+    <div class="viewer-count">👁 <span>14</span> watching</div>
+    <div style="color: var(--text-dim); font-size:10px;">SOOKERS: <span style="color:var(--cyan-dim)">247</span></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: SCOPE + FACECAM -->
+  <div class="left-panel">
+
+    <!-- SCOPE VIEW -->
+    <div class="scope-container">
+      <div class="scope-inner">
+
+        <!-- Target ghost -->
+        <div class="target-ghost">
+          <div class="target-silhouette"></div>
+        </div>
+
+        <!-- Crosshair -->
+        <div class="crosshair">
+          <div class="crosshair-h"></div>
+          <div class="crosshair-v"></div>
+          <div class="crosshair-gap"></div>
+          <!-- Mil dots -->
+          <div class="mil-dot" style="top:50%; left:25%;"></div>
+          <div class="mil-dot" style="top:50%; left:75%;"></div>
+          <div class="mil-dot" style="top:25%; left:50%;"></div>
+          <div class="mil-dot" style="top:75%; left:50%;"></div>
+        </div>
+
+        <!-- HUD overlays -->
+        <div class="scope-hud tl">
+          <div class="label">RANGE</div>
+          <div class="value">087m</div>
+          <div class="label" style="margin-top:6px">WIND</div>
+          <div class="value">2.1 NE</div>
+        </div>
+
+        <div class="scope-hud tr">
+          <div class="label">MAG</div>
+          <div class="value">19/20</div>
+          <div class="label" style="margin-top:6px">MARK</div>
+          <div class="value" style="color: var(--pink); text-shadow: 0 0 6px var(--pink);">LOCKED</div>
+        </div>
+
+        <div class="scope-hud bl">
+          <div class="label">PRECISION</div>
+          <div class="value">+1d6</div>
+        </div>
+
+        <div class="scope-hud br">
+          <div class="value" style="color: rgba(0,229,255,0.4); font-size:9px;">AIM ●</div>
+        </div>
+
+        <div class="scope-label">ASSASSIN RIFLE — SCOPE CAM — SIXSCOPE™</div>
+        <div class="scanlines"></div>
+      </div>
+    </div>
+
+    <!-- FACE CAM -->
+    <div class="facecam-container">
+      <div class="facecam-inner">
+
+        <video class="facecam-video" autoplay loop muted playsinline>
+          <source src="SookLoop.mp4" type="video/mp4">
+        </video>
+
+        <div class="noise-overlay"></div>
+        <div class="facecam-scanlines"></div>
+      </div>
+
+      <div class="facecam-label">OPERATIVE CAM — FIELD FEED</div>
+      <div class="facecam-status">
+        <div class="signal-bars">
+          <div class="signal-bar"></div>
+          <div class="signal-bar"></div>
+          <div class="signal-bar"></div>
+          <div class="signal-bar"></div>
+        </div>
+        <span style="font-family:'Share Tech Mono',monospace; font-size:9px; color:rgba(0,229,255,0.35);">SIG:LOW</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <span>LIVE CHAT</span>
+      <span class="chat-sookers">SOOKERS ONLINE</span>
+    </div>
+
+    <div class="chat-messages">
+
+      <div class="system-msg">Stream started 00:47:23 ago</div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">안녕하세요 sookers!! here early as always 🙌</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name vesk">xX_VeskWarrior_Xx</span>
+        <span class="msg-text">why am i still watching this</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">because you KNOW</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name vesk">xX_VeskWarrior_Xx</span>
+        <span class="msg-text">know what</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name skitter">skitterfan22</span>
+        <span class="msg-text">wait is he in a DUNGEON</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name bot">ch4tbot_5000</span>
+        <span class="msg-text dim">BUY FOLLOWERS CHEAP AT WWW.FOL</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">sooksook fighting!! 화이팅!!!</span>
+      </div>
+
+      <div class="donation-msg">
+        <div class="donation-amount">KimSuperfan99 — 100 cr</div>
+        <div class="donation-text">잘했어!! good shot!!</div>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name vesk">xX_VeskWarrior_Xx</span>
+        <span class="msg-text">okay that was actually clean</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name skitter">skitterfan22</span>
+        <span class="msg-text">HE HAS SIX ARMS??? I just noticed</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">YES!! six arms!! we are the SIXERS</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name vesk">xX_VeskWarrior_Xx</span>
+        <span class="msg-text">sookers*</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">...sookers yes</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name anon">Anonymous_Viewer_847</span>
+        <span class="msg-text" style="color:#2a6a7a;">👁️</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name skitter">skitterfan22</span>
+        <span class="msg-text">who is that</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">we don't ask</span>
+      </div>
+
+      <div class="donation-msg">
+        <div class="donation-amount">KimSuperfan99 — 100 cr</div>
+        <div class="donation-text">SCOPE CAM LOOKING GOOD TONIGHT</div>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name vesk">xX_VeskWarrior_Xx</span>
+        <span class="msg-text">he mentioned the relay again</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name skitter">skitterfan22</span>
+        <span class="msg-text">what relay</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">THE Great Absallom Relay!! he came SECOND</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name vesk">xX_VeskWarrior_Xx</span>
+        <span class="msg-text">second</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name kim">KimSuperfan99</span>
+        <span class="msg-text">RUNNER UP IS STILL PODIUM</span>
+      </div>
+
+      <div class="msg">
+        <span class="msg-name anon">Anonymous_Viewer_847</span>
+        <span class="msg-text" style="color:#2a6a7a;">👁️</span>
+      </div>
+
+    </div>
+
+    <!-- Chat input -->
+    <div class="chat-input">
+      <div class="chat-input-box">Send a message as a Sooker...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottombar">
+  <div class="bottom-left">
+    <div class="crosshair-logo">
+      <div class="crosshair-circle"></div>
+    </div>
+    <div class="bottom-channel" style="font-size:11px; color: var(--text-mid);">SookSook<span style="color:var(--cyan)">Shoots</span>Stuff</div>
+  </div>
+
+  <div class="relay-badge">
+    <div class="relay-badge-icon">🏆</div>
+    GREAT ABSALLOM RELAY — RUNNER UP
+  </div>
+
+  <div class="bottom-right">
+    <div style="color: var(--text-dim); font-size:10px;">SESSION: 00:47:23</div>
+    <div style="color: var(--kim); font-size:10px; margin-top:2px;">KIM TOTAL: 847 cr</div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SookSook Filter</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a1520;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: monospace;
+    color: #00e5ff;
+    gap: 10px;
+  }
+  canvas { display: block; border: 1px solid #00e5ff22; }
+  video  { position: fixed; top: -9999px; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  #status { font-size: 11px; opacity: 0.6; letter-spacing: 0.1em; text-transform: uppercase; }
+  #controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; font-size: 11px; }
+  label { display: flex; align-items: center; gap: 8px; }
+  input[type=range] { width: 100px; accent-color: #00e5ff; cursor: pointer; }
+  .hint { font-size: 10px; opacity: 0.4; grid-column: 1/-1; text-align: center; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="out" width="640" height="480"></canvas>
+<video id="vid" width="640" height="480" autoplay playsinline muted></video>
+<div id="status">initialising...</div>
+<div id="controls">
+  <label>hair scale   <input type="range" id="c-scale"  min="0.8" max="3.5" step="0.05" value="2.0"></label>
+  <label>up / down    <input type="range" id="c-offy"   min="-200" max="150" step="2"    value="-40"></label>
+  <label>skin blend   <input type="range" id="c-skin"   min="0"   max="1"   step="0.05"  value="0.5"></label>
+  <label>eye size     <input type="range" id="c-eyesz"  min="0.5" max="3.0" step="0.1"   value="1.3"></label>
+  <div class="hint">hair scale + up/down to seat the spikes above your head</div>
+</div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver }
+  from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+
+const canvas   = document.getElementById('out');
+const ctx      = canvas.getContext('2d');
+const video    = document.getElementById('vid');
+const statusEl = document.getElementById('status');
+const W = canvas.width, H = canvas.height;
+
+// Reusable offscreen canvas for compositing hair overlay
+const offscreen = new OffscreenCanvas(W, H);
+const offCtx    = offscreen.getContext('2d');
+
+// Config sliders
+const cfg = {};
+['scale','offy','skin','eyesz'].forEach(k => {
+  const el = document.getElementById(`c-${k}`);
+  cfg[k] = parseFloat(el.value);
+  el.addEventListener('input', () => cfg[k] = parseFloat(el.value));
+});
+
+// SookSook skin colour (muted mauve-pink)
+const SKIN      = '#a86878';
+const LIP_COLOR = '#7a3858';
+
+// Head overlay image (transparent PNG — full head with spikes)
+const headImg = new Image();
+headImg.src   = 'Face3-removebg-preview.png';
+
+// ─── MediaPipe landmark index groups ─────────────────────────────────────
+const FACE_OVAL = [
+  10,338,297,332,284,251,389,356,454,323,361,288,
+  397,365,379,378,400,377,152,148,176,149,150,136,
+  172,58,132,93,234,127,162,21,54,103,67,109
+];
+const L_EYE = [33,160,158,133,153,144];
+const R_EYE = [362,385,387,263,373,380];
+// Outer lip contour
+const MOUTH_TOP = [61,185,40,39,37,0,267,269,270,409,291];
+const MOUTH_BOT = [291,375,321,405,314,17,84,181,91,146,61];
+// Nose tip + nostrils
+const L_NOSTRIL = 129, R_NOSTRIL = 358, NOSE_TIP = 4, NOSE_BASE = 2;
+
+// ─── init ────────────────────────────────────────────────────────────────
+let landmarker = null;
+
+async function init() {
+  statusEl.textContent = 'loading mediapipe model...';
+  const fs = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+  );
+  landmarker = await FaceLandmarker.createFromOptions(fs, {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+      delegate: 'GPU'
+    },
+    outputFaceBlendshapes: true,
+    runningMode: 'VIDEO',
+    numFaces: 1
+  });
+
+  statusEl.textContent = 'requesting camera...';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' }
+    });
+    video.srcObject = stream;
+    video.addEventListener('playing', () => {
+      statusEl.textContent = 'SIG: LOW — ONLINE';
+      requestAnimationFrame(tick);
+    });
+    video.play();
+  } catch (e) {
+    statusEl.textContent = 'camera denied: ' + e.message;
+  }
+}
+
+// ─── per-frame ────────────────────────────────────────────────────────────
+function tick() {
+  // Draw mirrored video every frame
+  ctx.save();
+  ctx.translate(W, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+  ctx.restore();
+
+  const result = landmarker.detectForVideo(video, performance.now());
+  if (result.faceLandmarks?.[0]) {
+    renderFace(result.faceLandmarks[0], result.faceBlendshapes);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── helpers ──────────────────────────────────────────────────────────────
+// Landmark index → mirrored canvas pixel [x, y]
+function px(lm, i) {
+  return [(1 - lm[i].x) * W, lm[i].y * H];
+}
+
+function blendshape(bs, name) {
+  return bs?.[0]?.categories.find(c => c.categoryName === name)?.score ?? 0;
+}
+
+// Build face-oval clip path on a given context
+function ovalPath(context, lm) {
+  const [x0, y0] = px(lm, FACE_OVAL[0]);
+  context.beginPath();
+  context.moveTo(x0, y0);
+  for (let i = 1; i < FACE_OVAL.length; i++) {
+    const [x, y] = px(lm, FACE_OVAL[i]);
+    context.lineTo(x, y);
+  }
+  context.closePath();
+}
+
+// ─── main render ──────────────────────────────────────────────────────────
+function renderFace(lm, blendshapes) {
+  const jawOpen = blendshape(blendshapes, 'jawOpen');
+  const blinkL  = blendshape(blendshapes, 'eyeBlinkLeft');
+  const blinkR  = blendshape(blendshapes, 'eyeBlinkRight');
+
+  const [elx, ely] = px(lm, 33);
+  const [erx, ery] = px(lm, 263);
+  const [foreX, foreY] = px(lm, 10);
+  const [chinX, chinY] = px(lm, 152);
+  const angle   = Math.atan2(ery - ely, erx - elx);
+  const faceCX  = (elx + erx) / 2;
+  const faceCY  = (foreY + chinY) / 2;
+  const faceH   = chinY - foreY;
+
+  // ── 1. Pink skin grade on face oval ──────────────────────────────────
+  // 'color' composite shifts hue/sat to SookSook pink while keeping face luminance
+  ctx.save();
+  ovalPath(ctx, lm);
+  ctx.clip();
+  ctx.globalCompositeOperation = 'color';
+  ctx.globalAlpha = cfg.skin;
+  ctx.fillStyle = SKIN;
+  ctx.fill();
+  ctx.restore();
+
+  // ── 2. Hair/spikes overlay with face punched out ───────────────────
+  // This makes the spiky head sit around the face rather than on top of it
+  if (headImg.complete && headImg.naturalWidth > 0) {
+    const drawH = (faceH * cfg.scale) / 0.55;
+    const drawW = drawH * headImg.naturalWidth / headImg.naturalHeight;
+    const drawX = faceCX - drawW / 2;
+    const drawY = faceCY - 0.70 * drawH + cfg.offy;
+
+    offCtx.clearRect(0, 0, W, H);
+
+    // Draw full overlay onto offscreen
+    offCtx.save();
+    offCtx.translate(faceCX, faceCY);
+    offCtx.rotate(angle);
+    offCtx.translate(-faceCX, -faceCY);
+    offCtx.drawImage(headImg, drawX, drawY, drawW, drawH);
+    offCtx.restore();
+
+    // Punch face oval out of the offscreen overlay
+    // so the illustrated face is removed and the user's face shows through
+    ovalPath(offCtx, lm);
+    offCtx.globalCompositeOperation = 'destination-out';
+    offCtx.fillStyle = '#000';
+    offCtx.fill();
+    offCtx.globalCompositeOperation = 'source-over';
+
+    // Composite hair-only layer onto main canvas
+    ctx.drawImage(offscreen, 0, 0);
+  }
+
+  // ── 3. Eyes (drawn directly at landmark positions) ─────────────────
+  drawEye(lm, L_EYE, blinkL);
+  drawEye(lm, R_EYE, blinkR);
+
+  // ── 4. Nose ────────────────────────────────────────────────────────
+  drawNose(lm);
+
+  // ── 5. Mouth (activates with jaw open) ────────────────────────────
+  if (jawOpen > 0.08) drawMouth(lm, jawOpen);
+}
+
+// ─── eye ─────────────────────────────────────────────────────────────────
+function eyeBounds(lm, indices) {
+  let sx = 0, sy = 0;
+  for (const i of indices) { const [x, y] = px(lm, i); sx += x; sy += y; }
+  const cx = sx / indices.length, cy = sy / indices.length;
+  let maxR = 0;
+  for (const i of indices) {
+    const [x, y] = px(lm, i);
+    maxR = Math.max(maxR, Math.hypot(x - cx, y - cy));
+  }
+  return { cx, cy, r: maxR };
+}
+
+function drawEye(lm, indices, blink) {
+  const { cx, cy, r } = eyeBounds(lm, indices);
+  const er = r * cfg.eyesz;
+
+  ctx.save();
+  if (blink > 0.45) {
+    // Closed: skin-coloured lid + crease
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, er * 1.25, er * 0.9, 0, 0, Math.PI * 2);
+    ctx.fillStyle = SKIN;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx - er * 1.15, cy);
+    ctx.lineTo(cx + er * 1.15, cy);
+    ctx.strokeStyle = '#6a3050';
+    ctx.lineWidth = Math.max(1.5, er * 0.3);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  } else {
+    // Open alien eye: outer white-less dark eye with layered depth
+    // Sclera (SookSook has none — full dark eye)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, er, er * 0.78, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#120608';
+    ctx.fill();
+
+    // Iris ring (dark purple)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, er * 0.66, er * 0.52, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#3a1028';
+    ctx.fill();
+
+    // Pupil
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, er * 0.36, er * 0.36, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#060208';
+    ctx.fill();
+
+    // Specular glint
+    ctx.beginPath();
+    ctx.arc(cx - er * 0.2, cy - er * 0.24, er * 0.16, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(230, 190, 220, 0.6)';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ─── nose ────────────────────────────────────────────────────────────────
+function drawNose(lm) {
+  const [tx, ty] = px(lm, NOSE_TIP);
+  const [lx, ly] = px(lm, L_NOSTRIL);
+  const [rx, ry] = px(lm, R_NOSTRIL);
+  const noseW = Math.abs(rx - lx) * 0.45;
+
+  ctx.save();
+  // Left nostril
+  ctx.beginPath();
+  ctx.ellipse(lx, ly, noseW * 0.7, noseW * 0.5, -0.3, 0, Math.PI * 2);
+  ctx.fillStyle = '#6a3040';
+  ctx.fill();
+  // Right nostril
+  ctx.beginPath();
+  ctx.ellipse(rx, ry, noseW * 0.7, noseW * 0.5, 0.3, 0, Math.PI * 2);
+  ctx.fillStyle = '#6a3040';
+  ctx.fill();
+  ctx.restore();
+}
+
+// ─── mouth ───────────────────────────────────────────────────────────────
+function drawMouth(lm, jawOpen) {
+  const topPts = MOUTH_TOP.map(i => px(lm, i));
+  const botPts = MOUTH_BOT.map(i => px(lm, i));
+
+  const [topCX, topCY] = px(lm, 0);
+  const [botCX, botCY] = px(lm, 17);
+  const baseLipGap = Math.abs(botCY - topCY);
+  const extraDrop  = jawOpen * baseLipGap * 2.5;
+
+  const shiftedBot = botPts.map(([x, y]) => [x, y + extraDrop]);
+
+  ctx.save();
+
+  // Dark mouth cavity
+  ctx.beginPath();
+  ctx.moveTo(topPts[0][0], topPts[0][1]);
+  for (const [x, y] of topPts) ctx.lineTo(x, y);
+  for (const [x, y] of shiftedBot) ctx.lineTo(x, y);
+  ctx.closePath();
+  ctx.fillStyle = '#160308';
+  ctx.fill();
+
+  // Upper teeth
+  const mL     = Math.min(...topPts.map(p => p[0]));
+  const mR     = Math.max(...topPts.map(p => p[0]));
+  const mW     = mR - mL;
+  const tTop   = topCY + baseLipGap * 0.1;
+  const tH     = baseLipGap * 0.5 * (0.5 + jawOpen * 0.7);
+  const inset  = mW * 0.09;
+  const nTeeth = 6;
+  const tW     = (mW - inset * 2) / nTeeth;
+
+  for (let t = 0; t < nTeeth; t++) {
+    const tx   = mL + inset + t * tW;
+    const gap  = tW * 0.07;
+    ctx.beginPath();
+    ctx.roundRect(tx + gap, tTop, tW - gap * 2, tH, [0, 0, 4, 4]);
+    ctx.fillStyle = '#e0d8c8';
+    ctx.fill();
+    ctx.strokeStyle = '#b8a898';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  // Lip outline
+  ctx.beginPath();
+  ctx.moveTo(topPts[0][0], topPts[0][1]);
+  for (const [x, y] of topPts) ctx.lineTo(x, y);
+  for (const [x, y] of shiftedBot) ctx.lineTo(x, y);
+  ctx.closePath();
+  ctx.strokeStyle = LIP_COLOR;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+init();
+</script>
+</body>
+</html>

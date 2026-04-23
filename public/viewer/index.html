@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SookSook">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>SookSook Shoots Stuff — LIVE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00e5ff;
+    --cyan-dim: #00b8cc;
+    --cyan-dark: #003d44;
+    --slate: #0a1520;
+    --slate-mid: #0d1f2d;
+    --slate-light: #152535;
+    --slate-border: #1e3448;
+    --pink: #ff6eb4;
+    --pink-dim: #c4507f;
+    --gold: #ffd700;
+    --red-live: #ff3b3b;
+    --text-dim: #4a7a8a;
+    --text-mid: #7ab8c8;
+    --text-bright: #b8e8f0;
+    --kim: #ff9f43;
+    --vesk: #ff6b6b;
+    --bot: #444;
+    --anon: #2a4a5a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { overflow: hidden; }
+
+  body {
+    background: var(--slate);
+    font-family: 'Exo 2', sans-serif;
+    color: var(--text-bright);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HOLOGRAPHIC GRID ── */
+  .holo-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: linear-gradient(90deg, #050d14 0%, var(--slate-mid) 40%, #050d14 100%);
+    border-bottom: 1px solid var(--slate-border);
+    padding: 18px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 10;
+  }
+
+  .topbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.4;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 21px;
+    font-family: 'Orbitron', monospace;
+    font-size: 33px;
+    font-weight: 700;
+    letter-spacing: 9px;
+    color: var(--red-live);
+  }
+
+  .live-dot {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--red-live);
+    box-shadow: 0 0 24px var(--red-live);
+    animation: pulse-red 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; box-shadow: 0 0 24px var(--red-live); }
+    50% { opacity: 0.4; box-shadow: 0 0 9px var(--red-live); }
+  }
+
+  .channel-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    color: var(--cyan);
+    text-shadow: 0 0 40px rgba(0,229,255,0.5);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .viewer-info {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 33px;
+    color: var(--text-dim);
+  }
+
+  .viewer-count { color: var(--cyan-dim); font-size: 36px; }
+  .viewer-count span { color: var(--cyan); font-weight: bold; }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--slate);
+    position: relative;
+  }
+
+  .stream-logo {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    width: 390px;
+    opacity: 0.82;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 20;
+  }
+
+  /* In cam-mode the facecam fills left-panel — logo stays in the same corner */
+  body.cam-mode .stream-logo {
+    bottom: 12px;
+    right: 12px;
+  }
+
+  /* ── SCOPE VIEW ── */
+  .scope-container {
+    flex: 1;
+    position: relative;
+    background: #000;
+    border: 1px solid var(--slate-border);
+    overflow: hidden;
+    border-radius: 4px;
+    animation: scope-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes scope-glow {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(0,229,255,0.1); }
+    50% { box-shadow: 0 0 0 1px rgba(0,229,255,0.25), 0 0 15px rgba(0,229,255,0.05); }
+  }
+
+  .scope-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: radial-gradient(ellipse at center, #0a1a10 0%, #000 70%);
+  }
+
+  .scope-inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.9) 100%);
+    z-index: 2;
+  }
+
+  .crosshair {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    width: 200px; height: 200px;
+  }
+
+  .crosshair-h, .crosshair-v {
+    position: absolute;
+    background: rgba(0,229,255,0.7);
+  }
+
+  .crosshair-h {
+    width: 100%; height: 1px;
+    top: 50%; left: 0;
+    transform: translateY(-50%);
+    box-shadow: 0 0 4px var(--cyan);
+  }
+
+  .crosshair-v {
+    width: 1px; height: 100%;
+    left: 50%; top: 0;
+    transform: translateX(-50%);
+    box-shadow: 0 0 4px var(--cyan);
+  }
+
+  .crosshair-gap {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px; height: 30px;
+    border: 1px solid rgba(0,229,255,0.5);
+    border-radius: 50%;
+    z-index: 6;
+    box-shadow: 0 0 8px rgba(0,229,255,0.3), inset 0 0 8px rgba(0,229,255,0.1);
+  }
+
+  .mil-dot {
+    position: absolute;
+    width: 4px; height: 4px;
+    background: rgba(0,229,255,0.6);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+  }
+
+  /* Scope HUD — range colour driven by controller */
+  .scope-hud {
+    position: absolute;
+    z-index: 8;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,229,255,0.7);
+    text-shadow: 0 0 6px rgba(0,229,255,0.5);
+  }
+
+  .scope-hud.tl { top: 12px; left: 12px; }
+  .scope-hud.tr { top: 12px; right: 12px; text-align: right; }
+  .scope-hud.bl { bottom: 12px; left: 12px; }
+  .scope-hud.br { bottom: 12px; right: 12px; text-align: right; }
+
+  .scope-hud div { line-height: 1.4; }
+  .scope-hud .label { color: rgba(0,229,255,0.4); font-size: 10px; letter-spacing: 2px; }
+  .scope-hud .value { color: rgba(0,229,255,0.9); }
+
+  /* Range finder — big prominent readout */
+  .range-hud {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+    z-index: 8;
+    font-family: 'Orbitron', monospace;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .range-hud .range-label-big {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: rgba(0,229,255,0.45);
+  }
+
+  .range-hud .range-value-big {
+    font-size: 84px;
+    font-weight: 900;
+    line-height: 1;
+    color: #00ff88;
+    text-shadow: 0 0 20px #00ff88, 0 0 40px rgba(0,255,136,0.3);
+    transition: color 0.4s, text-shadow 0.4s;
+    letter-spacing: -2px;
+  }
+
+  .range-hud .range-value-big.yellow {
+    color: #ffdd00;
+    text-shadow: 0 0 20px #ffdd00, 0 0 40px rgba(255,221,0,0.3);
+  }
+
+  .range-hud .range-value-big.red {
+    color: var(--red-live);
+    text-shadow: 0 0 20px var(--red-live), 0 0 40px rgba(255,59,59,0.4);
+    animation: range-alarm 0.8s ease-in-out infinite;
+  }
+
+  @keyframes range-alarm {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .range-hud .range-status-big {
+    font-family: 'Orbitron', monospace;
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 1px;
+    color: #00ff88;
+    text-shadow: 0 0 16px #00ff88;
+    transition: color 0.4s, text-shadow 0.4s;
+    margin-top: 4px;
+  }
+  .range-hud .range-status-big.yellow { color: #ffdd00; text-shadow: 0 0 16px #ffdd00; }
+  .range-hud .range-status-big.red    { color: var(--red-live); text-shadow: 0 0 16px var(--red-live); }
+
+  .wind-hud {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .wind-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: rgba(0,229,255,0.45);
+  }
+  .wind-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 1px;
+    color: #00ff88;
+    text-shadow: 0 0 12px #00ff88;
+    transition: color 2s ease, text-shadow 2s ease;
+  }
+  .wind-value.yellow { color: #ffdd00; text-shadow: 0 0 12px #ffdd00; }
+  .wind-value.red    { color: var(--red-live); text-shadow: 0 0 12px var(--red-live); }
+
+  /* ── MAG HUD — top-left, big ── */
+  .mag-hud {
+    position: absolute;
+    top: 16px; left: 16px;
+    z-index: 8;
+    font-family: 'Orbitron', monospace;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mag-hud .mag-label {
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: rgba(0,229,255,0.45);
+  }
+
+  .mag-hud .mag-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* CSS bullet icon */
+  .bullet-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  .bullet-tip {
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 14px solid rgba(0,229,255,0.75);
+    filter: drop-shadow(0 0 4px rgba(0,229,255,0.5));
+  }
+
+  .bullet-body {
+    width: 14px; height: 28px;
+    background: linear-gradient(180deg,
+      rgba(0,229,255,0.8) 0%,
+      rgba(0,183,204,0.6) 50%,
+      rgba(0,100,120,0.8) 100%);
+    border-radius: 0 0 3px 3px;
+    box-shadow: 0 0 6px rgba(0,229,255,0.3);
+  }
+
+  .mag-hud .mag-value {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(0,229,255,0.9);
+    text-shadow: 0 0 16px rgba(0,229,255,0.4);
+    letter-spacing: -1px;
+  }
+
+  /* ── MARK / PRECISION HUD — top-right, big ── */
+  .mark-hud {
+    position: absolute;
+    top: 16px; right: 16px;
+    z-index: 8;
+    font-family: 'Orbitron', monospace;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mark-hud .hud-block { display: flex; flex-direction: column; gap: 3px; }
+  .mark-hud .hud-label { font-size: 10px; letter-spacing: 4px; color: rgba(0,229,255,0.45); }
+
+  .mark-hud .mark-value {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--pink);
+    text-shadow: 0 0 16px rgba(255,110,180,0.5);
+    letter-spacing: -1px;
+  }
+
+  .mark-hud .precision-value {
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: rgba(0,229,255,0.2);
+    letter-spacing: 0px;
+    transition: color 0.4s, text-shadow 0.4s;
+  }
+
+  /* Range value colour states (used on small HUD fallback) */
+  .range-value.green  { color: #00ff88; text-shadow: 0 0 6px #00ff88; }
+  .range-value.yellow { color: #ffdd00; text-shadow: 0 0 6px #ffdd00; }
+  .range-value.red    { color: var(--red-live); text-shadow: 0 0 10px var(--red-live); }
+
+  .target-ghost {
+    position: absolute;
+    top: 42%; left: 55%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    opacity: 0.15;
+  }
+
+  .target-silhouette {
+    width: 40px; height: 60px;
+    border: 1px solid var(--cyan);
+    border-radius: 20px 20px 5px 5px;
+    position: relative;
+  }
+
+  .target-silhouette::before {
+    content: '';
+    position: absolute;
+    top: -18px; left: 50%;
+    transform: translateX(-50%);
+    width: 20px; height: 20px;
+    border: 1px solid var(--cyan);
+    border-radius: 50%;
+  }
+
+  .scope-label {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: rgba(0,229,255,0.3);
+    z-index: 9;
+    white-space: nowrap;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
+    );
+    z-index: 7;
+    pointer-events: none;
+  }
+
+  /* ── FACE CAM — floating square, bottom-left, 20% of viewport ── */
+  .facecam-container {
+    position: fixed;
+    bottom: 100px;
+    left: 10px;
+    width: 20vw;
+    height: 20vw;
+    border: 1px solid var(--slate-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--slate-mid);
+    z-index: 15;
+    box-shadow: 0 0 0 1px rgba(0,229,255,0.08), 0 4px 24px rgba(0,0,0,0.6);
+    transition: all 0.4s ease;
+  }
+
+  /* ── PTT TICKER ── */
+  .ptt-ticker {
+    position: absolute;
+    top: 22%;
+    left: 0; right: 0;
+    height: 64px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.75);
+    border-top: 1px solid rgba(0, 229, 255, 0.2);
+    border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s;
+  }
+
+  .ptt-ticker.active { opacity: 1; }
+
+  /* Operative cam ticker sits flush at the bottom, above the label/SIG row */
+  #ptt-ticker-face { top: auto; bottom: 0; }
+
+  .ptt-ticker-inner {
+    display: inline-block;
+    white-space: nowrap;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 45px;
+    color: var(--cyan);
+    letter-spacing: 1.5px;
+    line-height: 64px;
+    padding-right: 200px;
+  }
+
+  .ptt-ticker.active .ptt-ticker-inner {
+    animation: ptt-scroll 13s linear forwards;
+  }
+
+  .ptt-ticker-prefix { color: rgba(0, 229, 255, 0.45); }
+
+  @keyframes ptt-scroll {
+    from { transform: translateX(100vw); }
+    to   { transform: translateX(-100%); }
+  }
+
+  /* ── Cam mode: scope hidden, facecam fills left panel ── */
+  body.cam-mode .scope-container { display: none; }
+  body.cam-mode .left-panel { padding: 0; gap: 0; }
+  body.cam-mode .facecam-container {
+    position: relative;
+    bottom: auto; left: auto;
+    width: 100%; height: 100%;
+    flex: 1;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    z-index: 1;
+  }
+
+  .facecam-inner {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at 40% 40%, #1a0a1a 0%, #0a0510 60%, #000 100%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Skittermander placeholder — replaced when face cam loop asset arrives */
+  .skitter-figure { position: relative; z-index: 3; }
+  .skitter-body {
+    width: 50px; height: 65px;
+    background: linear-gradient(160deg, #d4608a 0%, #b84070 50%, #8a2550 100%);
+    border-radius: 25px 25px 15px 15px;
+    position: relative;
+    margin: 0 auto;
+  }
+  .skitter-head {
+    width: 42px; height: 38px;
+    background: linear-gradient(160deg, #e070a0 0%, #c85080 100%);
+    border-radius: 50% 50% 40% 40%;
+    margin: 0 auto;
+    position: relative;
+    top: 4px;
+  }
+  .skitter-hair { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 50px; height: 20px; }
+  .spike { position: absolute; bottom: 0; width: 6px; background: linear-gradient(180deg, #e888b8 0%, #c05080 100%); border-radius: 3px 3px 0 0; transform-origin: bottom center; }
+  .skitter-eyes { display: flex; justify-content: center; gap: 8px; padding-top: 10px; }
+  .eye { width: 8px; height: 8px; background: #fff; border-radius: 50%; position: relative; }
+  .eye::after { content: ''; position: absolute; top: 2px; left: 2px; width: 4px; height: 4px; background: #111; border-radius: 50%; }
+  .arm { position: absolute; width: 8px; height: 35px; background: linear-gradient(180deg, #c05070 0%, #a03858 100%); border-radius: 4px; transform-origin: top center; }
+  .arm-phone { right: -35px; top: 5px; transform: rotate(25deg); }
+  .phone { position: absolute; bottom: -12px; left: -8px; width: 22px; height: 16px; background: #111; border: 1px solid var(--cyan); border-radius: 3px; box-shadow: 0 0 6px rgba(0,229,255,0.4); }
+  .phone::after { content: '●'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 6px; color: var(--red-live); text-shadow: 0 0 4px var(--red-live); }
+
+  .signal-bars { display: flex; gap: 2px; align-items: flex-end; }
+  .signal-bar { width: 4px; background: var(--cyan-dim); border-radius: 1px; }
+  .signal-bar:nth-child(1) { height: 5px; opacity: 1; }
+  .signal-bar:nth-child(2) { height: 8px; opacity: 0.9; }
+  .signal-bar:nth-child(3) { height: 11px; opacity: 0.7; }
+  .signal-bar:nth-child(4) { height: 14px; opacity: 0.2; }
+
+  .facecam-label {
+    position: absolute;
+    top: 6px; left: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,229,255,0.5);
+    letter-spacing: 1px;
+    z-index: 5;
+  }
+
+  .facecam-status {
+    position: absolute;
+    top: 6px; right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 5;
+  }
+
+  .facecam-scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 6px
+    );
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .noise-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 0% 0%, rgba(0,229,255,0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(0,229,255,0.03) 0%, transparent 50%);
+    z-index: 3;
+  }
+
+  /* ── CHAT PANEL ── */
+  .chat-panel {
+    background: var(--slate-mid);
+    border-left: 1px solid var(--slate-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--slate-border);
+    font-family: 'Orbitron', monospace;
+    font-size: 30px;
+    letter-spacing: 4px;
+    color: var(--cyan-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(90deg, var(--slate-mid), var(--slate-light));
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .chat-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+    opacity: 0.3;
+  }
+
+  .chat-sookers {
+    font-size: 22px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 2px;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 6px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--slate-border); border-radius: 3px; }
+
+  .msg {
+    padding: 8px 20px;
+    font-size: 28px;
+    line-height: 1.4;
+  }
+
+  .msg-name { font-weight: 600; font-size: 26px; margin-right: 8px; }
+  .msg-text { color: var(--text-bright); font-size: 28px; }
+  .msg-text.dim { color: #3a5a6a; font-size: 26px; }
+
+  .donation-msg {
+    margin: 8px 12px;
+    padding: 14px 20px;
+    background: linear-gradient(90deg, rgba(255,159,67,0.1), rgba(255,159,67,0.05));
+    border-left: 5px solid var(--kim);
+    border-radius: 0 6px 6px 0;
+    animation: donation-flash 0.5s ease-out;
+  }
+
+  @keyframes donation-flash {
+    from { background: rgba(255,159,67,0.3); }
+    to { background: linear-gradient(90deg, rgba(255,159,67,0.1), rgba(255,159,67,0.05)); }
+  }
+
+  .donation-amount { font-family: 'Orbitron', monospace; font-size: 26px; color: var(--kim); font-weight: 700; }
+  .donation-text { font-size: 24px; color: rgba(255,159,67,0.8); margin-top: 4px; }
+
+  .system-msg {
+    padding: 6px 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     PORTRAIT PHONE LAYOUT  (≤ 680px)
+     Landscape / tablet layout above is untouched.
+  ══════════════════════════════════════════════════════════ */
+  @media (max-width: 680px) {
+    html { overflow: auto; }
+
+    body {
+      height: auto;
+      min-height: 100dvh;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      transform: none !important;
+      width: 100% !important;
+    }
+
+    /* ── Compact top bar ── */
+    .topbar {
+      padding: 10px 14px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .live-badge {
+      font-size: 14px;
+      letter-spacing: 4px;
+      gap: 8px;
+    }
+    .live-dot { width: 10px; height: 10px; }
+
+    .channel-name {
+      position: static;
+      transform: none;
+      font-size: 13px;
+      letter-spacing: 2px;
+      order: 3;
+      width: 100%;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viewer-info { font-size: 13px; gap: 12px; }
+    .viewer-count { font-size: 13px; }
+
+    /* ── Main: single column ── */
+    .main {
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+      flex: none;
+    }
+
+    /* ── Scope strip: short, fixed, no flex-grow ── */
+    .left-panel {
+      padding: 0;
+      gap: 0;
+      flex: none;
+    }
+
+    .scope-container {
+      flex: none;
+      height: 160px;
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+    }
+
+    /* Scale down HUD text inside scope */
+    .range-hud .range-value-big { font-size: 36px; letter-spacing: 0; }
+    .range-hud .range-status-big { font-size: 18px; }
+    .range-hud .range-label-big { font-size: 8px; }
+    .wind-value { font-size: 13px; }
+    .mag-hud .mag-value { font-size: 22px; }
+    .mag-hud .mag-label { font-size: 8px; }
+    .bullet-tip { border-left-width: 4px; border-right-width: 4px; border-bottom-width: 8px; }
+    .bullet-body { width: 8px; height: 16px; }
+    .mark-hud .mark-value { font-size: 20px; }
+    .mark-hud .precision-value { font-size: 13px; }
+    .scope-hud { font-size: 8px; }
+
+    /* Hide face cam on portrait — wastes space */
+    .facecam-container { display: none; }
+
+    /* ── Chat: expands to fill remaining space ── */
+    .chat-panel {
+      border-left: none;
+      border-top: 1px solid var(--slate-border);
+      flex: 1;
+      min-height: 0;
+    }
+
+    .chat-header {
+      padding: 10px 14px;
+      font-size: 13px;
+      letter-spacing: 2px;
+    }
+    .chat-sookers { font-size: 11px; }
+
+    .chat-messages {
+      padding: 8px 0;
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+
+    .msg { padding: 5px 14px; font-size: 13px; }
+    .msg-name { font-size: 12px; }
+    .msg-text { font-size: 13px; }
+    .msg-text.dim { font-size: 12px; }
+
+    .donation-msg { margin: 5px 10px; padding: 8px 12px; }
+    .donation-amount { font-size: 12px; }
+    .donation-text { font-size: 11px; }
+
+    .system-msg { font-size: 10px; padding: 4px 14px; }
+
+    /* ── Compact bottom bar ── */
+    .bottombar {
+      padding: 10px 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .bottom-left { gap: 10px; }
+    .crosshair-logo { width: 28px; height: 28px; }
+    .crosshair-logo::before { height: 2px; }
+    .crosshair-logo::after  { width: 2px; }
+    .crosshair-circle { width: 14px; height: 14px; border-width: 2px; }
+    .bottom-channel { font-size: 13px; letter-spacing: 1px; }
+
+    .relay-badge img {
+      height: 56px;
+    }
+
+    .bottom-right { font-size: 12px; }
+  }
+
+  /* ── BOTTOM BAR ── */
+  .bottombar {
+    background: linear-gradient(90deg, #050d14 0%, var(--slate-mid) 40%, #050d14 100%);
+    border-top: 1px solid var(--slate-border);
+    padding: 15px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 10;
+  }
+
+  .bottombar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.3;
+  }
+
+  .bottom-left { display: flex; align-items: center; gap: 36px; }
+
+  .crosshair-logo {
+    width: 60px; height: 60px;
+    position: relative;
+    opacity: 0.6;
+  }
+  .crosshair-logo::before, .crosshair-logo::after { content: ''; position: absolute; background: var(--cyan); }
+  .crosshair-logo::before { width: 100%; height: 3px; top: 50%; left: 0; transform: translateY(-50%); }
+  .crosshair-logo::after { width: 3px; height: 100%; left: 50%; top: 0; transform: translateX(-50%); }
+  .crosshair-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 30px; height: 30px; border: 3px solid var(--cyan); border-radius: 50%; }
+
+  .bottom-channel { font-family: 'Orbitron', monospace; font-size: 33px; color: var(--text-mid); letter-spacing: 3px; }
+
+  /* Runner Up medal — ALWAYS VISIBLE */
+  .relay-badge {
+    display: flex;
+    align-items: center;
+  }
+
+  .relay-badge img {
+    height: 90px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 12px rgba(0,229,255,0.4));
+  }
+
+  .bottom-right {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 30px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<div class="holo-grid"></div>
+<div id="audio-hint" style="position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(5,13,20,0.85);z-index:999;cursor:pointer;">
+  <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:700;letter-spacing:4px;color:#00e5ff;text-shadow:0 0 30px rgba(0,229,255,0.6);text-align:center;">
+    TAP TO START STREAM
+    <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(0,229,255,0.5);letter-spacing:3px;margin-top:12px;">ENABLES AUDIO + KEEPS SCREEN AWAKE</div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    LIVE
+  </div>
+  <div class="channel-name">SookSook Shoots Stuff</div>
+  <div class="viewer-info">
+    <div class="viewer-count">👁 <span id="viewer-count">14</span> watching</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: SCOPE + FACECAM -->
+  <div class="left-panel">
+
+    <div class="scope-container">
+      <div class="scope-inner">
+        <canvas id="scope-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></canvas>
+
+        <div class="crosshair">
+          <div class="crosshair-h"></div>
+          <div class="crosshair-v"></div>
+          <div class="crosshair-gap"></div>
+          <div class="mil-dot" style="top:50%;left:25%;"></div>
+          <div class="mil-dot" style="top:50%;left:75%;"></div>
+          <div class="mil-dot" style="top:25%;left:50%;"></div>
+          <div class="mil-dot" style="top:75%;left:50%;"></div>
+        </div>
+
+        <!-- Big range finder readout -->
+        <div class="range-hud">
+          <div class="range-label-big">RANGE</div>
+          <div class="range-value-big green" id="range-display">---<span style="font-size:42px;opacity:0.7">ft</span></div>
+          <div class="range-status-big" id="range-status">ROUTINE</div>
+          <div class="wind-hud">
+            <div class="wind-label">WIND</div>
+            <div class="wind-value" id="wind-display">— —</div>
+          </div>
+        </div>
+
+        <!-- Mag — top-left -->
+        <div class="mag-hud">
+          <div class="mag-label">MAG</div>
+          <div class="mag-row">
+            <div class="bullet-icon">
+              <div class="bullet-tip"></div>
+              <div class="bullet-body"></div>
+            </div>
+            <div class="mag-value" id="mag-display">20/20</div>
+          </div>
+        </div>
+
+        <!-- Mark / Precision — top-right -->
+        <div class="mark-hud">
+          <div class="hud-block">
+            <div class="hud-label">MARK</div>
+            <div class="mark-value" id="aim-status" style="color:rgba(0,229,255,0.5)">NO TARGET</div>
+          </div>
+          <div class="hud-block">
+            <div class="hud-label">WEAKSPOT</div>
+            <div class="precision-value" id="weakspot-value">—</div>
+          </div>
+        </div>
+
+        <div class="scope-hud br">
+          <div style="color:rgba(0,229,255,0.4);font-size:9px;" id="phase-indicator">AIM ●</div>
+        </div>
+
+        <div class="ptt-ticker" id="ptt-ticker-scope">
+          <span class="ptt-ticker-inner"><span class="ptt-ticker-prefix">▶ SOOKSOOK: </span></span>
+        </div>
+        <div class="scope-label">ASSASSIN RIFLE — SCOPE CAM — SIXSCOPE™</div>
+        <div class="scanlines"></div>
+      </div>
+    </div>
+
+    <!-- FACE CAM — replace inner content with video loop when asset arrives -->
+    <div class="facecam-container">
+      <div class="facecam-inner" id="facecam-inner">
+        <video autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+        <script>
+          // Load video src after element is in DOM to avoid flash
+          document.currentScript.previousElementSibling.src = 'SookLoop.mp4';
+        </script>
+        <div class="noise-overlay"></div>
+        <div class="facecam-scanlines"></div>
+        <div class="ptt-ticker" id="ptt-ticker-face">
+          <span class="ptt-ticker-inner"><span class="ptt-ticker-prefix">▶ SOOKSOOK: </span></span>
+        </div>
+      </div>
+      <div class="facecam-label">OPERATIVE CAM — FIELD FEED</div>
+      <div class="facecam-status">
+        <div class="signal-bars">
+          <div class="signal-bar"></div>
+          <div class="signal-bar"></div>
+          <div class="signal-bar"></div>
+          <div class="signal-bar"></div>
+        </div>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,229,255,0.35);">SIG:LOW</span>
+      </div>
+    </div>
+
+    <img src="/sooksook_logo_transparent.png" class="stream-logo" alt="">
+
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <span>LIVE CHAT</span>
+      <span class="chat-sookers">SOOKERS ONLINE</span>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="system-msg" id="session-timer-msg">Stream started 00:00:00 ago</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottombar">
+  <div class="bottom-left">
+    <div class="crosshair-logo">
+      <div class="crosshair-circle"></div>
+    </div>
+    <div class="bottom-channel">SookSook<span style="color:var(--cyan)">Shoots</span>Stuff</div>
+  </div>
+
+  <!-- Runner Up medal — ALWAYS VISIBLE, NON-NEGOTIABLE -->
+  <div class="relay-badge">
+    <img src="../runner-up-medal.png" alt="Runner Up — The Great Absallom Relay">
+  </div>
+
+  <div class="bottom-right">
+    <div style="color:var(--text-dim);font-size:30px;">SESSION: <span id="session-timer">00:00:00</span></div>
+    <div style="color:var(--kim);font-size:30px;margin-top:6px;">KIM TOTAL: <span id="kim-total">0</span> cr</div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, get, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // Loaded from shared config — swap in your real values
+  // TODO: replace with actual Firebase config before deploying
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyBTooaaCpb0S7acg4rINHMFjYMmTcY9Kfw",
+    authDomain:        "sooksookshootschat.firebaseapp.com",
+    databaseURL:       "https://sooksookshootschat-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "sooksookshootschat",
+    storageBucket:     "sooksookshootschat.firebasestorage.app",
+    messagingSenderId: "396837120203",
+    appId:             "1:396837120203:web:30ca8996a1c4fdfc83534e"
+  };
+
+  const RANGE = { GREEN: 120, YELLOW: 160 };
+  let _currentRange = 60;
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db  = getDatabase(app);
+
+  // ── Session timer ──
+  const sessionStartKey = "sooksook_session_start";
+  if (!localStorage.getItem(sessionStartKey)) {
+    localStorage.setItem(sessionStartKey, Date.now());
+  }
+  const sessionStart = parseInt(localStorage.getItem(sessionStartKey));
+
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600).toString().padStart(2, "0");
+    const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
+    const sc = (s % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${sc}`;
+  }
+
+  setInterval(() => {
+    const elapsed = Date.now() - sessionStart;
+    const t = formatTime(elapsed);
+    document.getElementById("session-timer").textContent = t;
+    document.getElementById("session-timer-msg").textContent = `Stream started ${t} ago`;
+  }, 1000);
+
+  // ── Range HUD ──
+  function applyRange(feet) {
+    const el = document.getElementById("range-display");
+    const st = document.getElementById("range-status");
+    el.innerHTML = `${feet}<span style="font-size:42px;opacity:0.7">ft</span>`;
+    el.className = "range-value-big";
+    st.className = "range-status-big";
+    if (feet < RANGE.GREEN) {
+      el.classList.add("green"); st.classList.add("green");
+      st.textContent = "ROUTINE";
+    } else if (feet < RANGE.YELLOW) {
+      el.classList.add("yellow"); st.classList.add("yellow");
+      st.textContent = "EXTENDED";
+    } else {
+      el.classList.add("red"); st.classList.add("red");
+      st.textContent = "RECORD";
+    }
+  }
+
+  // ── Stream state ──
+  onValue(ref(db, "stream/viewerCount"), snap => {
+    const v = snap.val();
+    if (v != null) document.getElementById("viewer-count").textContent = v;
+  });
+
+  onValue(ref(db, "stream/kimTotal"), snap => {
+    const v = snap.val();
+    if (v != null) document.getElementById("kim-total").textContent = v;
+  });
+
+  onValue(ref(db, "stream/rangeFeet"), snap => {
+    const v = snap.val();
+    if (v != null) { applyRange(v); _currentRange = v; }
+  });
+
+  onValue(ref(db, "stream/markStatus"), snap => {
+    const v = snap.val() || "NO TARGET";
+    const aim = document.getElementById("aim-status");
+    const ws  = document.getElementById("weakspot-value");
+    const marked = v === "TARGET MARKED";
+    document.dispatchEvent(new CustomEvent('scopeMark', {
+      detail: { marked, rangeFeet: _currentRange }
+    }));
+    aim.textContent  = v;
+    aim.style.color  = marked ? "var(--pink)" : "rgba(0,229,255,0.5)";
+    aim.style.textShadow = marked ? "0 0 16px rgba(255,110,180,0.6)" : "none";
+    ws.textContent   = marked ? "WEAKSPOT\nAVAILABLE" : "—";
+    ws.style.color   = marked ? "var(--pink)" : "rgba(0,229,255,0.2)";
+    ws.style.textShadow = marked ? "0 0 16px rgba(255,110,180,0.6)" : "none";
+    ws.style.whiteSpace = "pre-line";
+  });
+
+  // Fire animation + PTT ticker — single stream listener to read consistent snapshots
+  let _firedTs = Date.now(); // ignore events older than page load
+  let _pttTs   = Date.now();
+  let _scrollHoldUntil = 0; // epoch ms — suppress auto-scroll during PTT read window
+
+  function triggerPttTicker(transcript) {
+    document.querySelectorAll('.ptt-ticker').forEach(ticker => {
+      const inner = ticker.querySelector('.ptt-ticker-inner');
+      inner.innerHTML = `<span class="ptt-ticker-prefix">▶ SOOKSOOK: </span>"${transcript}"`;
+      ticker.classList.remove('active');
+      void inner.offsetWidth; // force reflow to restart animation
+      ticker.classList.add('active');
+      clearTimeout(ticker._hideTimer);
+      ticker._hideTimer = setTimeout(() => ticker.classList.remove('active'), 14000);
+    });
+  }
+
+  onValue(ref(db, "stream"), snap => {
+    const d = snap.val();
+    if (!d?.lastEventTs) return;
+    if (['hit','miss','crit'].includes(d.lastEvent) && d.lastEventTs > _firedTs) {
+      _firedTs = d.lastEventTs;
+      document.dispatchEvent(new CustomEvent('scopeFire', { detail: { type: d.lastEvent } }));
+    }
+    if (d.lastEvent === 'ptt' && d.lastPttTranscript && d.lastEventTs > _pttTs) {
+      _pttTs = d.lastEventTs;
+      triggerPttTicker(d.lastPttTranscript);
+      _scrollHoldUntil = Date.now() + 30000;
+    }
+  });
+
+  onValue(ref(db, "stream/scopeMode"), snap => {
+    const v = snap.val();
+    document.body.classList.toggle('cam-mode', v === 'cam');
+  });
+
+  onValue(ref(db, "stream/magCurrent"), snap => {
+    const v = snap.val();
+    if (v == null) return;
+    const maxSnap = document.getElementById("mag-display");
+    const cur = parseInt(maxSnap.textContent.split("/")[1]) || 20;
+    maxSnap.textContent = `${v}/${cur}`;
+  });
+
+  onValue(ref(db, "stream/magMax"), snap => {
+    const v = snap.val();
+    if (v == null) return;
+    const el = document.getElementById("mag-display");
+    const cur = parseInt(el.textContent.split("/")[0]) || 20;
+    el.textContent = `${cur}/${v}`;
+  });
+
+  // ── Chat messages ──
+  const CHAT_COLOURS = {
+    KimSuperfan99:        "#ff9f43",
+    "xX_VeskWarrior_Xx":  "#ff6b6b",
+    skitterfan22:         "#7bed9f",
+    ch4tbot_5000:         "#444444",
+    Anonymous_Viewer_847: "#2a4a5a",
+    velvet_sniper:        "#9b59b6",
+    SookieForever:        "#f8a5c2",
+    CritMathCorp:         "#1abc9c"
+  };
+
+  function appendMessage(msg) {
+    const container = document.getElementById("chat-messages");
+
+    if (msg.type === "donation") {
+      const el = document.createElement("div");
+      el.className = "donation-msg";
+      el.innerHTML = `
+        <div class="donation-amount">KimSuperfan99 — ${msg.amount} cr</div>
+        <div class="donation-text">${msg.text}</div>
+      `;
+      container.appendChild(el);
+    } else {
+      const el = document.createElement("div");
+      el.className = "msg";
+      const colour = CHAT_COLOURS[msg.user] || "var(--text-bright)";
+      const textClass = msg.user === "ch4tbot_5000" ? "msg-text dim" : "msg-text";
+      el.innerHTML = `
+        <span class="msg-name" style="color:${colour}">${msg.user}</span>
+        <span class="${textClass}">${msg.text}</span>
+      `;
+      container.appendChild(el);
+    }
+
+    if (Date.now() > _scrollHoldUntil) container.scrollTop = container.scrollHeight;
+  }
+
+  // Initial greeting messages — fires once if chat is empty on load
+  const chatSnap = await get(ref(db, "chat/messages"));
+  if (!chatSnap.exists()) {
+    const now = Date.now();
+    const greetings = [
+      { user: "KimSuperfan99",        text: "안녕하세요 sookers!! 화이팅!! 💛",        ts: now - 5000 },
+      { user: "Anonymous_Viewer_847", text: "👁️",                                    ts: now - 4000 },
+      { user: "skitterfan22",         text: "wait is he setting up??",               ts: now - 3000 },
+      { user: "xX_VeskWarrior_Xx",    text: "here we go again",                      ts: now - 2000 },
+      { user: "KimSuperfan99",        text: "OUR BOY IS LIVE!! 우리 SookSook!! 💛💛", ts: now - 1000 },
+    ];
+    for (const msg of greetings) await push(ref(db, "chat/messages"), msg);
+  }
+
+  // Listen for new chat messages pushed by Cloud Run backend
+  onValue(ref(db, "chat/messages"), snap => {
+    const messages = snap.val();
+    if (!messages) return;
+    const container = document.getElementById("chat-messages");
+    // Preserve the session timer system message, replace the rest
+    const timerMsg = document.getElementById("session-timer-msg");
+    container.innerHTML = "";
+    container.appendChild(timerMsg);
+    Object.values(messages)
+      .sort((a, b) => a.ts - b.ts)
+      .slice(-60)
+      .forEach(appendMessage);
+  });
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/nosleep.js@0.12.0/dist/NoSleep.min.js"></script>
+<script>
+// ── Keep screen alive — three-layer approach for iPadOS ──────────────────────
+// Layer 1: NoSleep.js  — hidden looping video; iOS won't sleep during playback
+// Layer 2: Web Audio   — silent oscillator keeps the audio session open; iOS
+//                        treats an active audio session as foreground activity
+// Layer 3: Native API  — navigator.wakeLock for Chrome/Firefox/Edge
+//
+// All three require a user gesture to start (piggybacked on the splash tap).
+// A 45-second heartbeat re-asserts all layers in case iOS pauses the video.
+
+window._screenGuard = (function () {
+  const noSleep  = new NoSleep();
+  let   audioCtx = null;
+  let   started  = false;
+
+  function startAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc  = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.001; // inaudible but non-zero so iOS keeps session alive
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+    } catch (_) {}
+  }
+
+  function acquireNativeLock() {
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').catch(() => {});
+    }
+  }
+
+  function heartbeat() {
+    noSleep.enable();
+    if (audioCtx?.state === 'suspended') audioCtx.resume().catch(() => {});
+    acquireNativeLock();
+  }
+
+  return {
+    start() {
+      if (started) return;
+      started = true;
+      noSleep.enable();
+      startAudio();
+      acquireNativeLock();
+      setInterval(heartbeat, 45000);
+    },
+    wake() {
+      // Call on visibilitychange (page returns to foreground)
+      if (!started) return;
+      heartbeat();
+    }
+  };
+}());
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') window._screenGuard.wake();
+});
+document.addEventListener('pageshow', () => window._screenGuard.wake());
+
+// ── Wind gauge ───────────────────────────────────────────────────────────────
+(function () {
+  const DIRS    = ['N','NE','E','SE','S','SW','W','NW'];
+  const ARROWS  = ['↑','↗','→','↘','↓','↙','←','↖'];
+
+  // Start at a calm-ish random state
+  let speed = 1.5 + Math.random() * 2.5;
+  let dirIdx = Math.floor(Math.random() * 8);
+
+  const el = document.getElementById('wind-display');
+
+  function update() {
+    // Drift speed by a small random step — feels like real wind
+    const delta = (Math.random() - 0.48) * 0.35; // slight upward bias occasionally
+    speed = Math.max(0.3, Math.min(9.5, speed + delta));
+
+    // Occasionally shift direction by one step (roughly every 25–50 ticks)
+    if (Math.random() < 0.04) dirIdx = (dirIdx + (Math.random() < 0.5 ? 1 : -1) + 8) % 8;
+
+    const display = `${ARROWS[dirIdx]} ${DIRS[dirIdx]} ${speed.toFixed(1)}`;
+    el.textContent = display;
+    el.className   = 'wind-value';
+    if (speed >= 5.5) el.classList.add('red');
+    else if (speed >= 3.0) el.classList.add('yellow');
+  }
+
+  update(); // immediate first render
+  setInterval(update, 2800); // gradual steps every ~3s
+}());
+
+// ── Shot audio ───────────────────────────────────────────────────────────────
+(function () {
+  // Pool of Audio elements so rapid shots don't cut each other off
+  const POOL = 4;
+  const pool = Array.from({ length: POOL }, () => {
+    const a = new Audio('shot.mp3');
+    a.preload = 'auto';
+    return a;
+  });
+  let idx = 0, unlocked = false;
+
+  function unlock() {
+    if (unlocked) return;
+    unlocked = true;
+    // Pre-warm each element during the user gesture so iOS allows later playback
+    pool.forEach(a => { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); });
+    // Start all three wake-lock layers inside the user gesture
+    window._screenGuard.start();
+    document.getElementById('audio-hint')?.remove();
+  }
+
+  document.addEventListener('click',      unlock, { once: true });
+  document.addEventListener('touchstart', unlock, { once: true });
+
+  function playShot(type) {
+    if (!unlocked) return;
+    const a = pool[idx++ % POOL];
+    a.volume      = type === 'crit' ? 1.0 : type === 'hit' ? 0.85 : 0.55;
+    a.currentTime = 0;
+    a.play().catch(() => {});
+
+    // Crit: a second quieter echo slightly delayed
+    if (type === 'crit') {
+      setTimeout(() => {
+        const b = pool[idx++ % POOL];
+        b.volume = 0.35; b.currentTime = 0; b.play().catch(() => {});
+      }, 200);
+    }
+  }
+
+  document.addEventListener('scopeFire', e => playShot(e.detail.type));
+}());
+
+// ── Scope: primitive 3D (Battlezone-style wireframe) ─────────────────────────
+(function () {
+  const canvas = document.getElementById('scope-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  // ── 3D projection ─────────────────────────────────────────────────────────
+  let camZ   = 0;
+  let camX   = 0;
+  let yaw    = 0;
+  const EYE  = 1.8;
+  let W = 1, H = 1, cx = 0, cy = 0, FL = 1;
+
+  // ── Mode state machine ────────────────────────────────────────────────────
+  // SEEKING → LOCKING → LOCKED → RETURNING → SEEKING
+  let mode       = 'SEEKING';
+  let modeT      = 0;          // frames spent in current mode
+  let lockTarget = null;       // dedicated target figure when locking
+  let lockYaw    = 0;          // yaw angle to face target
+  let lockCamZ   = 0;          // camZ frozen when fully locked
+  let lockCamX   = 0;          // camX frozen when fully locked
+
+  // ── Fire / recoil state ───────────────────────────────────────────────────
+  let recoilOffset = 0;   // positive = view pitches up (horizon drops)
+  let recoilVel    = 0;
+  let flashAlpha   = 0;
+  let flashColor   = '#ffffff';
+  let muzzleAlpha  = 0;
+  let shakeX       = 0;
+
+  const FIRE_CFG = {
+    crit: { kick: 55, flash: 1.0,  color: '#ffffff', shake: 6,  muzzle: 1.0 },
+    hit:  { kick: 32, flash: 0.6,  color: '#aaffcc', shake: 2,  muzzle: 0.7 },
+    miss: { kick: 18, flash: 0.22, color: '#335533', shake: 8,  muzzle: 0.35 },
+  };
+
+  function triggerFire(type) {
+    const cfg = FIRE_CFG[type] || FIRE_CFG.miss;
+    recoilVel   = cfg.kick;           // spring starts kicked upward
+    flashAlpha  = cfg.flash;
+    flashColor  = cfg.color;
+    muzzleAlpha = cfg.muzzle;
+    shakeX      = (Math.random() < 0.5 ? 1 : -1) * cfg.shake;
+  }
+
+  document.addEventListener('scopeFire', e => triggerFire(e.detail.type));
+
+  document.addEventListener('scopeMark', e => {
+    if (e.detail.marked) {
+      // Place target at distance matching range feet (1 ft ≈ 0.55 world units)
+      const dist = Math.max(8, e.detail.rangeFeet * 0.55);
+      lockTarget = { type: 'figure', x: rnd(-8, 8), z: camZ + dist, isTarget: true };
+      objects.push(lockTarget);
+      mode = 'LOCKING'; modeT = 0;
+    } else {
+      mode = 'RETURNING'; modeT = 0;
+    }
+  });
+
+  function project(wx, wy, wz) {
+    let rx = wx - camX + shakeX * 0.02;
+    const ry = wy - EYE;
+    let rz = wz - camZ;
+    const cos = Math.cos(-yaw), sin = Math.sin(-yaw);
+    const rx2 = rx * cos - rz * sin;
+    const rz2 = rx * sin + rz * cos;
+    if (rz2 < 0.5) return null;
+    const scale = FL / rz2;
+    // recoilOffset shifts horizon down (camera pitching up on recoil)
+    return { x: cx + rx2 * scale, y: (cy + recoilOffset) - ry * scale, z: rz2, scale };
+  }
+
+  // ── Scene objects (recycled as camera moves) ──────────────────────────────
+  const SCENE_DEPTH = 120;
+  let objects = [];
+
+  function makeBuilding(z) {
+    const x   = rnd(-40, 40);
+    const w   = rnd(4, 16);
+    const d   = rnd(4, 14);
+    const h   = rnd(4, 22);
+    return { type: 'box', x, z, w, d, h };
+  }
+
+  function makeFigure(z) {
+    return { type: 'figure', x: rnd(-30, 30), z };
+  }
+
+  function makeVehicle(z) {
+    return { type: 'vehicle', x: rnd(-35, 35), z, w: rnd(3, 6), d: rnd(5, 9), h: rnd(1.5, 2.5) };
+  }
+
+  function spawnObject(z) {
+    const r = Math.random();
+    if (r < 0.60) return makeBuilding(z);
+    if (r < 0.85) return makeVehicle(z);
+    return makeFigure(z);
+  }
+
+  function buildScene() {
+    objects = [];
+    for (let z = 8; z < SCENE_DEPTH; z += rnd(4, 12)) {
+      objects.push(spawnObject(camZ + z));
+      if (Math.random() < 0.4) objects.push(spawnObject(camZ + z)); // occasional double
+    }
+  }
+
+  // ── Drawing ───────────────────────────────────────────────────────────────
+  function alpha(z) {
+    // Bright when close, fades with distance
+    return Math.max(0, Math.min(1, 1.1 - z / SCENE_DEPTH));
+  }
+
+  function green(a) { return `rgba(0,255,68,${a.toFixed(2)})`; }
+
+  function line(p1, p2, a) {
+    if (!p1 || !p2) return;
+    ctx.strokeStyle = green(a);
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+  }
+
+  // Project a box and draw its 12 edges
+  function drawBox(obj) {
+    const { x, z, w, d, h } = obj;
+    const hw = w / 2, hd = d / 2;
+    // 8 vertices
+    const verts = [
+      project(x - hw, 0,  z - hd), project(x + hw, 0,  z - hd),
+      project(x + hw, 0,  z + hd), project(x - hw, 0,  z + hd),
+      project(x - hw, h,  z - hd), project(x + hw, h,  z - hd),
+      project(x + hw, h,  z + hd), project(x - hw, h,  z + hd),
+    ];
+    const a = alpha(verts.find(v => v)?.z ?? SCENE_DEPTH);
+    if (a <= 0) return;
+
+    // Fill faces with dark tint for hidden-surface feel
+    const topFace = [verts[4], verts[5], verts[6], verts[7]];
+    if (topFace.every(Boolean)) {
+      ctx.fillStyle = `rgba(0,10,2,${Math.min(a * 2, 0.98)})`;
+      ctx.beginPath();
+      ctx.moveTo(topFace[0].x, topFace[0].y);
+      topFace.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Front face fill
+    const front = [verts[0], verts[1], verts[5], verts[4]];
+    if (front.every(Boolean)) {
+      ctx.fillStyle = `rgba(0,6,1,${Math.min(a * 2, 0.98)})`;
+      ctx.beginPath();
+      ctx.moveTo(front[0].x, front[0].y);
+      front.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.lineWidth = 1;
+    // Bottom square
+    line(verts[0], verts[1], a * 0.5); line(verts[1], verts[2], a * 0.5);
+    line(verts[2], verts[3], a * 0.5); line(verts[3], verts[0], a * 0.5);
+    // Top square
+    line(verts[4], verts[5], a); line(verts[5], verts[6], a);
+    line(verts[6], verts[7], a); line(verts[7], verts[4], a);
+    // Verticals
+    line(verts[0], verts[4], a * 0.8); line(verts[1], verts[5], a * 0.8);
+    line(verts[2], verts[6], a * 0.8); line(verts[3], verts[7], a * 0.8);
+
+    // Windows on front face (random per object, stable via x/z seed)
+    const seed = Math.abs(Math.sin(obj.x * 7.3 + obj.z * 3.1));
+    if (h > 6 && verts[0] && verts[1] && verts[4]) {
+      const rows = Math.floor(h / 2.5);
+      const cols = Math.floor(w / 2.5);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const wseed = Math.sin((r * 13 + c * 7 + seed) * 91.3);
+          if (wseed > 0.1) continue; // ~45% lit
+          const wy = (r + 0.5) / rows;
+          const wx = (c + 0.5) / cols;
+          const wp1 = project(x - hw + wx * w, h * (1 - wy) + 0.3, z - hd - 0.01);
+          const wp2 = project(x - hw + wx * w, h * (1 - wy) - 0.3, z - hd - 0.01);
+          if (!wp1 || !wp2) continue;
+          ctx.strokeStyle = green(a * 0.55);
+          ctx.lineWidth = Math.max(1, wp1.scale * 0.4);
+          ctx.beginPath();
+          ctx.moveTo(wp1.x, wp1.y);
+          ctx.lineTo(wp2.x, wp2.y);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function drawFigure3D(obj, isTarget = false) {
+    const { x, z } = obj;
+    const h = 1.8;
+    const p = [
+      project(x,         h,        z),
+      project(x,         h - 0.35, z),
+      project(x,         h * 0.52, z),
+      project(x,         0,        z),
+      project(x - 0.4,  h * 0.72, z),
+      project(x + 0.4,  h * 0.72, z),
+      project(x - 0.25, 0,        z),
+      project(x + 0.25, 0,        z),
+    ];
+    if (!p[0]) return;
+    const baseA = isTarget ? Math.min(1, alpha(p[0].z) * 2 + 0.3) : alpha(p[0].z);
+    if (baseA <= 0) return;
+    ctx.lineWidth = isTarget ? 1.8 : 1.2;
+    if (isTarget && (mode === 'LOCKED' || mode === 'LOCKING')) {
+      ctx.shadowColor = '#00ff44'; ctx.shadowBlur = 6;
+    }
+    if (p[0] && p[1]) {
+      const r = Math.abs(p[0].y - p[1].y) * 0.8;
+      ctx.strokeStyle = green(baseA);
+      ctx.beginPath();
+      ctx.arc(p[0].x, (p[0].y + p[1].y) / 2, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    line(p[1], p[2], baseA);
+    line(p[2], p[4], baseA * 0.9); line(p[2], p[5], baseA * 0.9);
+    line(p[2], p[6], baseA * 0.9); line(p[2], p[7], baseA * 0.9);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawVehicle3D(obj) {
+    const { x, z, w, d, h } = obj;
+    drawBox({ x, z, w, d, h });
+    // Turret nub
+    const tw = w * 0.3, td = d * 0.3;
+    drawBox({ x, z: z - d * 0.1, w: tw, d: td, h: h * 0.6 + 0.5 });
+  }
+
+  // Ground grid
+  function drawGround() {
+    ctx.lineWidth = 0.6;
+    const spacing = 8;
+    const near = 2, far = SCENE_DEPTH;
+
+    // Lines along Z (receding forward)
+    for (let xi = -6; xi <= 6; xi++) {
+      const p1 = project(xi * spacing, 0, camZ + near);
+      const p2 = project(xi * spacing, 0, camZ + far);
+      if (!p1 || !p2) continue;
+      ctx.strokeStyle = `rgba(0,180,40,${0.08 + Math.max(0, 0.12 - Math.abs(xi) * 0.02)})`;
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+    // Lines across Z (cross-hatches at intervals)
+    for (let zi = 1; zi < 16; zi++) {
+      const zw = camZ + near + zi * (far - near) / 16;
+      const p1 = project(-6 * spacing, 0, zw);
+      const p2 = project( 6 * spacing, 0, zw);
+      if (!p1 || !p2) continue;
+      ctx.strokeStyle = `rgba(0,180,40,${0.05 * (1 - zi / 16)})`;
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+    // Horizon line
+    const hp = project(0, 0, camZ + far * 2);
+    if (hp) {
+      ctx.strokeStyle = 'rgba(0,200,50,0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, hp.y); ctx.lineTo(W, hp.y); ctx.stroke();
+    }
+  }
+
+  // Scan sweep
+  let scanY = 0;
+  function drawScan() {
+    const g = ctx.createLinearGradient(0, scanY - 50, 0, scanY + 2);
+    g.addColorStop(0, 'rgba(0,255,68,0)');
+    g.addColorStop(1, 'rgba(0,255,68,0.18)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, scanY - 50, W, 52);
+    ctx.strokeStyle = 'rgba(0,255,68,0.55)';
+    ctx.lineWidth = 1;
+    ctx.shadowColor = '#00ff44'; ctx.shadowBlur = 5;
+    ctx.beginPath(); ctx.moveTo(0, scanY); ctx.lineTo(W, scanY); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // CRT pixel noise
+  function drawNoise() {
+    const n = Math.floor(W * H * 0.0018);
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = `rgba(0,255,68,${(Math.random() * 0.35).toFixed(2)})`;
+      ctx.fillRect(Math.random() * W | 0, Math.random() * H | 0, 1, 1);
+    }
+  }
+
+  // ── Resize ────────────────────────────────────────────────────────────────
+  function resize() {
+    const r = canvas.parentElement.getBoundingClientRect();
+    W = canvas.width  = r.width  || 600;
+    H = canvas.height = r.height || 400;
+    cx = W / 2; cy = H * 0.52;
+    FL = W * 0.75; // focal length — controls FOV
+    buildScene();
+  }
+
+  // ── Target lock bracket ───────────────────────────────────────────────────
+  function drawBracket(px, py, size, a) {
+    const b = size * 0.55, arm = size * 0.28;
+    ctx.strokeStyle = `rgba(0,255,68,${a})`;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = '#00ff44'; ctx.shadowBlur = 8;
+    const corners = [[-1,-1],[1,-1],[1,1],[-1,1]];
+    for (const [sx, sy] of corners) {
+      ctx.beginPath();
+      ctx.moveTo(px + sx * b, py + sy * b - sy * arm);
+      ctx.lineTo(px + sx * b, py + sy * b);
+      ctx.lineTo(px + sx * b - sx * arm, py + sy * b);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // ── Main loop ─────────────────────────────────────────────────────────────
+  let t = 0;
+  function frame() {
+    t++;
+    modeT++;
+
+    // ── Camera update per mode ──
+    if (mode === 'SEEKING') {
+      camZ += 0.06;
+      yaw   = Math.sin(t * 0.004) * 0.18;
+      camX  = Math.sin(t * 0.007) * 1.5;
+
+    } else if (mode === 'LOCKING') {
+      // Slow to a stop over ~80 frames
+      const slowF = Math.max(0, 1 - modeT / 80);
+      camZ += 0.06 * slowF;
+      // Compute yaw toward lockTarget and lerp toward it
+      if (lockTarget) {
+        const tx = lockTarget.x - camX, tz = lockTarget.z - camZ;
+        lockYaw = -Math.atan2(tx, tz);
+      }
+      yaw = lerp(yaw, lockYaw, 0.06);
+      camX = lerp(camX, 0, 0.04);
+      if (modeT > 80 && Math.abs(yaw - lockYaw) < 0.02) {
+        mode = 'LOCKED'; modeT = 0;
+        lockCamZ = camZ; lockCamX = camX;
+      }
+
+    } else if (mode === 'LOCKED') {
+      camZ = lockCamZ;
+      camX = lockCamX;
+      // Gun sway — natural micro-tremors
+      if (lockTarget) {
+        const tx = lockTarget.x - camX, tz = lockTarget.z - camZ;
+        lockYaw = -Math.atan2(tx, tz);
+      }
+      const swayYaw = Math.sin(t * 0.022) * 0.012 + Math.sin(t * 0.057) * 0.006;
+      const swayX   = Math.sin(t * 0.018) * 0.25  + Math.sin(t * 0.041) * 0.12;
+      yaw  = lockYaw + swayYaw;
+      camX = lockCamX + swayX;
+
+    } else if (mode === 'RETURNING') {
+      const resumeF = Math.min(1, modeT / 100);
+      camZ += 0.06 * resumeF;
+      const targetYaw = Math.sin(t * 0.004) * 0.18;
+      const targetX   = Math.sin(t * 0.007) * 1.5;
+      yaw  = lerp(yaw,  targetYaw, 0.025);
+      camX = lerp(camX, targetX,   0.025);
+      if (modeT > 120) { mode = 'SEEKING'; modeT = 0; lockTarget = null; }
+    }
+
+    // Recycle scene objects (never recycle the lock target)
+    for (const obj of objects) {
+      if (obj === lockTarget) continue;
+      if (obj.z < camZ - 5) {
+        obj.z = camZ + SCENE_DEPTH - 5;
+        obj.x = rnd(-40, 40);
+        if (obj.type === 'box' || obj.type === 'vehicle') {
+          obj.w = rnd(4, obj.type === 'vehicle' ? 6  : 16);
+          obj.d = rnd(4, obj.type === 'vehicle' ? 9  : 14);
+          obj.h = rnd(obj.type === 'vehicle' ? 1.5 : 4, obj.type === 'vehicle' ? 2.5 : 22);
+        }
+      }
+    }
+
+    // Draw
+    ctx.fillStyle = '#000800';
+    ctx.fillRect(0, 0, W, H);
+    const sky = ctx.createLinearGradient(0, 0, 0, cy);
+    sky.addColorStop(0, 'rgba(0,12,2,1)');
+    sky.addColorStop(1, 'rgba(0,22,5,1)');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, cy);
+
+    drawGround();
+
+    objects.sort((a, b) => b.z - a.z);
+    for (const obj of objects) {
+      if (obj.type === 'box')     drawBox(obj);
+      if (obj.type === 'vehicle') drawVehicle3D(obj);
+      if (obj.type === 'figure')  drawFigure3D(obj, obj === lockTarget);
+    }
+
+    // Lock bracket overlay
+    if (lockTarget && (mode === 'LOCKING' || mode === 'LOCKED')) {
+      const tp = project(lockTarget.x, 0.9, lockTarget.z);
+      if (tp) {
+        const bracketA = mode === 'LOCKED' ? 0.9 : Math.min(0.9, modeT / 40);
+        const size = Math.max(14, 50 / tp.z * FL * 0.08);
+        drawBracket(tp.x, tp.y, size, bracketA);
+      }
+    }
+
+    // ── Recoil spring physics ──
+    recoilVel    += -recoilOffset * 0.22; // spring toward 0
+    recoilVel    *= 0.68;                 // damping
+    recoilOffset += recoilVel;
+    shakeX       *= 0.78;
+    flashAlpha    = Math.max(0, flashAlpha  - 0.055);
+    muzzleAlpha   = Math.max(0, muzzleAlpha - 0.12);
+
+    // ── Screen flash overlay ──
+    if (flashAlpha > 0) {
+      ctx.globalAlpha = flashAlpha;
+      ctx.fillStyle   = flashColor;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Muzzle flash burst (bottom-centre) ──
+    if (muzzleAlpha > 0) {
+      const mx = cx + shakeX * 0.5;
+      const my = H;
+      const grad = ctx.createRadialGradient(mx, my, 0, mx, my, H * 0.45);
+      grad.addColorStop(0,   `rgba(255,255,220,${muzzleAlpha})`);
+      grad.addColorStop(0.25,`rgba(180,255,160,${muzzleAlpha * 0.6})`);
+      grad.addColorStop(1,   'rgba(0,255,68,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    drawScan();
+    drawNoise();
+
+    scanY += 0.5;
+    if (scanY > H + 10) scanY = -10;
+
+    requestAnimationFrame(frame);
+  }
+
+  setTimeout(() => { resize(); frame(); }, 200);
+  window.addEventListener('resize', resize);
+}());
+
+// Viewport scaler — keeps design pixel-perfect at 1366px wide (iPad Pro 12.9" landscape).
+// Portrait phones (≤ 680px) use the responsive CSS layout instead.
+(function () {
+  var DESIGN_W  = 1366;
+  var PORTRAIT_BREAKPOINT = 680;
+
+  function fit() {
+    if (window.innerWidth <= PORTRAIT_BREAKPOINT) {
+      // Let the portrait CSS media query handle it — clear any applied scaling
+      Object.assign(document.body.style, {
+        transform : '',
+        width     : '',
+        height    : '',
+        overflow  : ''
+      });
+      return;
+    }
+
+    var scale = Math.min(1, window.innerWidth / DESIGN_W);
+    var h     = window.innerHeight / scale;
+
+    if (scale < 1) {
+      Object.assign(document.body.style, {
+        transform       : 'scale(' + scale + ')',
+        transformOrigin : '0 0',
+        width           : DESIGN_W + 'px',
+        height          : h + 'px',
+        overflow        : 'hidden'
+      });
+    } else {
+      Object.assign(document.body.style, {
+        transform : '',
+        width     : '',
+        height    : '',
+        overflow  : ''
+      });
+    }
+  }
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(fit, 100);
+  });
+  fit();
+}());
+</script>
+
+</body>
+</html>

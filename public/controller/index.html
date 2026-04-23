@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SookSook — Controller</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00e5ff;
+    --cyan-dim: #00b8cc;
+    --slate: #0a1520;
+    --slate-mid: #0d1f2d;
+    --slate-light: #152535;
+    --slate-border: #1e3448;
+    --pink: #ff6eb4;
+    --red-live: #ff3b3b;
+    --text-dim: #4a7a8a;
+    --text-bright: #b8e8f0;
+    --kim: #ff9f43;
+    --green-hit: #00ff88;
+    --yellow-ext: #ffdd00;
+    --btn-h: 72px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--slate);
+    font-family: 'Exo 2', sans-serif;
+    color: var(--text-bright);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── TOP STATUS BAR ── */
+  .status-bar {
+    background: var(--slate-mid);
+    border-bottom: 1px solid var(--slate-border);
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .status-bar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.3;
+  }
+
+  .status-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--cyan);
+  }
+
+  .status-row {
+    display: flex;
+    gap: 14px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    align-items: center;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--red-live);
+    box-shadow: 0 0 6px var(--red-live);
+    animation: pulse-red 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    padding: 10px 12px 4px;
+  }
+
+  .section-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--slate-border);
+  }
+
+  /* ── BUTTON GRID ── */
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .btn-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  /* ── EVENT BUTTONS ── */
+  .evt-btn {
+    height: var(--btn-h);
+    border: 1px solid var(--slate-border);
+    border-radius: 6px;
+    background: var(--slate-light);
+    color: var(--text-bright);
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.1s, border-color 0.1s, transform 0.05s;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .evt-btn:active {
+    transform: scale(0.95);
+  }
+
+  .evt-btn .emoji {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .evt-btn .label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+  }
+
+  /* Hit — primary action */
+  .btn-hit    { border-color: var(--green-hit); }
+  .btn-hit:active { background: rgba(0,255,136,0.15); }
+
+  /* Miss */
+  .btn-miss:active { background: rgba(74,122,138,0.15); }
+
+  /* Crit */
+  .btn-crit   { border-color: var(--cyan); }
+  .btn-crit:active { background: rgba(0,229,255,0.15); }
+
+  /* CeeCeeBee */
+  .btn-cee    { border-color: var(--pink); }
+  .btn-cee:active { background: rgba(255,110,180,0.15); }
+
+  /* Knife */
+  .btn-knife:active { background: rgba(255,107,107,0.15); }
+
+  /* Relay */
+  .btn-relay  { border-color: var(--kim); }
+  .btn-relay:active { background: rgba(255,159,67,0.15); }
+
+  /* Misc */
+  .btn-down:active   { background: rgba(255,59,59,0.15); }
+  .btn-hero   { border-color: var(--cyan); }
+  .btn-hero:active   { background: rgba(0,229,255,0.2); }
+  .btn-agree:active  { background: rgba(0,255,136,0.1); }
+  .btn-disagree:active { background: rgba(255,107,107,0.1); }
+
+  /* Mark toggle */
+  .btn-mark { border-color: var(--text-dim); color: var(--text-dim); }
+  .btn-mark .emoji { font-size: 26px; opacity: 0.5; }
+  .btn-mark.marked {
+    border-color: var(--pink);
+    background: rgba(255,110,180,0.12);
+    box-shadow: 0 0 12px rgba(255,110,180,0.2);
+    color: var(--pink);
+  }
+  .btn-mark.marked .emoji { opacity: 1; }
+  .btn-mark.marked .label { color: var(--pink); }
+
+  /* Viewer bump */
+  .btn-bump   { border-color: var(--slate-border); }
+  .btn-bump:active { background: rgba(0,229,255,0.08); }
+
+  /* Kim donation — gold */
+  .btn-kim    { border-color: var(--kim); background: rgba(255,159,67,0.06); }
+  .btn-kim:active { background: rgba(255,159,67,0.2); }
+  .btn-kim .emoji { font-size: 20px; }
+
+  /* ── PTT BUTTON ── */
+  .ptt-section { padding: 10px 12px; }
+
+  .ptt-btn {
+    width: 100%;
+    height: 90px;
+    border-radius: 10px;
+    border: 2px solid var(--slate-border);
+    background: var(--slate-light);
+    color: var(--text-bright);
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.1s;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+    position: relative;
+  }
+
+  .ptt-btn.recording {
+    border-color: var(--red-live);
+    background: rgba(255,59,59,0.12);
+    box-shadow: 0 0 20px rgba(255,59,59,0.2);
+  }
+
+  .ptt-btn .ptt-emoji { font-size: 28px; }
+  .ptt-btn .ptt-label { font-size: 10px; color: var(--text-dim); }
+  .ptt-btn.recording .ptt-label { color: var(--red-live); }
+
+  /* ── RANGE SLIDER ── */
+  .range-section { padding: 8px 12px 12px; }
+
+  .range-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .range-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+
+  .range-value-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    color: var(--green-hit);
+    transition: color 0.3s;
+  }
+
+  .range-value-display.yellow { color: var(--yellow-ext); }
+  .range-value-display.red    { color: var(--red-live); }
+
+  input[type=range] {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--slate-border);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+    cursor: pointer;
+  }
+
+  .range-marks {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ── ROSTER ── */
+  .roster-section { padding: 8px 12px 12px; }
+
+  .roster-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .roster-slot {
+    background: var(--slate-light);
+    border: 1px solid var(--slate-border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-bright);
+    cursor: pointer;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
+  .roster-slot[contenteditable]:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .roster-slot:empty::before {
+    content: attr(placeholder);
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  /* ── FLASH FEEDBACK ── */
+  @keyframes btn-flash {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .flashing { animation: btn-flash 0.3s ease-in-out; }
+
+  /* ── CONNECTION STATUS ── */
+  .conn-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .conn-status.connected { color: var(--green-hit); }
+  .conn-status.error     { color: var(--red-live); }
+
+  /* Roster entry */
+  .roster-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .roster-fields {
+    display: flex;
+    gap: 4px;
+  }
+
+  .roster-name, .roster-class {
+    flex: 1;
+    background: var(--slate-light);
+    border: 1px solid var(--slate-border);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-bright);
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+  }
+
+  .roster-name[contenteditable]:focus,
+  .roster-class[contenteditable]:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .roster-name:empty::before { content: attr(placeholder); color: var(--text-dim); font-size: 9px; }
+  .roster-class:empty::before { content: attr(placeholder); color: var(--text-dim); font-size: 9px; }
+
+  .roster-actions {
+    display: flex;
+    gap: 3px;
+  }
+
+  .roster-action-btn {
+    flex: 1;
+    background: var(--slate-light);
+    border: 1px solid var(--slate-border);
+    border-radius: 4px;
+    font-size: 15px;
+    height: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.1s, border-color 0.1s;
+  }
+
+  .roster-action-btn:active {
+    background: rgba(0,229,255,0.1);
+    border-color: var(--cyan-dim);
+  }
+
+  .roster-action-btn:disabled { opacity: 0.25; cursor: default; }
+
+  /* Reset button */
+  .btn-reset { border-color: var(--red-live); }
+  .btn-reset:active { background: rgba(255,59,59,0.15); }
+
+  /* Scope toggle */
+  .scope-toggle-btn {
+    width: 100%;
+    height: 52px;
+    border: 1px solid var(--cyan-dim);
+    border-radius: 6px;
+    background: rgba(0,229,255,0.06);
+    color: var(--cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .scope-toggle-btn .emoji { font-size: 20px; }
+  .scope-toggle-btn:active { background: rgba(0,229,255,0.15); }
+  .scope-toggle-btn.cam-mode {
+    border-color: var(--pink);
+    background: rgba(255,110,180,0.08);
+    color: var(--pink);
+  }
+</style>
+</head>
+<body>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-title">SOOKSOOK CTL</div>
+  <div class="status-row">
+    <div class="status-pill">
+      <div class="live-dot"></div>
+      <span style="color:var(--red-live)">LIVE</span>
+    </div>
+    <div class="status-pill">
+      👁 <span id="status-viewers">--</span>
+    </div>
+    <div class="status-pill">
+      💰 <span id="status-kim" style="color:var(--kim)">0 cr</span>
+    </div>
+  </div>
+</div>
+
+<!-- COMBAT EVENTS -->
+<div class="section">
+  <div class="section-label">COMBAT EVENTS</div>
+  <div class="btn-grid">
+    <button class="evt-btn btn-hit"  data-event="hit">
+      <span class="emoji">🎯</span><span class="label">HIT</span>
+    </button>
+    <button class="evt-btn btn-miss" data-event="miss">
+      <span class="emoji">💨</span><span class="label">MISS</span>
+    </button>
+    <button class="evt-btn btn-crit" data-event="crit">
+      <span class="emoji">💥</span><span class="label">CRIT</span>
+    </button>
+    <button class="evt-btn btn-cee"  data-event="ceecee">
+      <span class="emoji">🔫</span><span class="label">CEECEE</span>
+    </button>
+    <button class="evt-btn btn-knife" data-event="knife">
+      <span class="emoji">🔪</span><span class="label">KNIFE</span>
+    </button>
+    <button class="evt-btn btn-mark" id="mark-btn">
+      <span class="emoji">⊕</span><span class="label" id="mark-label">NO TARGET</span>
+    </button>
+  </div>
+</div>
+
+<!-- RANGE SLIDER -->
+<div class="range-section">
+  <div class="range-header">
+    <span class="range-label">RANGE</span>
+    <span class="range-value-display green" id="range-display">60ft</span>
+  </div>
+  <input type="range" id="range-slider" min="0" max="200" value="60" step="5">
+  <div class="range-marks">
+    <span>0ft</span>
+    <span style="color:#7ab8c8">120ft ●</span>
+    <span style="color:#ffdd00">160ft ●</span>
+    <span style="color:var(--red-live)">200ft+</span>
+  </div>
+</div>
+
+<!-- SCOPE TOGGLE -->
+<div style="padding: 0 12px 10px;">
+  <button class="scope-toggle-btn" id="scope-toggle-btn">
+    <span id="scope-toggle-icon">🔭</span>
+    <span id="scope-toggle-label">SCOPE — ON</span>
+  </button>
+</div>
+
+<!-- PARTY EVENTS -->
+<div class="section">
+  <div class="section-label">PARTY</div>
+  <div class="btn-grid">
+    <button class="evt-btn btn-down"    data-event="party_down">
+      <span class="emoji">💀</span><span class="label">PARTY DOWN</span>
+    </button>
+    <button class="evt-btn btn-hero"    data-event="hero_point">
+      <span class="emoji">🎖️</span><span class="label">HERO POINT</span>
+    </button>
+    <button class="evt-btn btn-agree"   data-event="party_agrees">
+      <span class="emoji">🤝</span><span class="label">AGREE</span>
+    </button>
+  </div>
+  <div class="btn-grid">
+    <button class="evt-btn btn-disagree" data-event="party_disagrees">
+      <span class="emoji">⚔️</span><span class="label">DISAGREE</span>
+    </button>
+    <button class="evt-btn btn-relay" data-event="relay">
+      <span class="emoji">🏆</span><span class="label">RELAY</span>
+    </button>
+    <button class="evt-btn btn-bump" data-event="viewer_bump">
+      <span class="emoji">👥</span><span class="label">VIEWER BUMP</span>
+    </button>
+  </div>
+</div>
+
+<!-- KIM DONATION -->
+<div class="section">
+  <div class="section-label">DONATION</div>
+  <button class="evt-btn btn-kim" data-event="kim_donation" style="width:100%;height:60px;flex-direction:row;gap:10px;">
+    <span class="emoji">💰</span>
+    <span style="font-size:10px;letter-spacing:1px;">KIM DONATION</span>
+    <span id="kim-donation-amount" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--kim);margin-left:auto;padding-right:8px;">100 cr</span>
+  </button>
+</div>
+
+<!-- PTT -->
+<div class="ptt-section">
+  <div class="section-label">PUSH TO TALK</div>
+  <button class="ptt-btn" id="ptt-btn">
+    <span class="ptt-emoji">🎙️</span>
+    <span id="ptt-label" class="ptt-label">HOLD TO RECORD</span>
+  </button>
+</div>
+
+<!-- PARTY ROSTER -->
+<div class="roster-section">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="section-label">PARTY ROSTER</div>
+    <button id="clear-roster-btn" style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--text-dim);background:none;border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:4px 10px;cursor:pointer;">CLEAR</button>
+  </div>
+  <div class="roster-grid">
+    <div class="roster-entry">
+      <div class="roster-fields">
+        <div class="roster-name" contenteditable="true" placeholder="Name"></div>
+        <div class="roster-class" contenteditable="true" placeholder="Class"></div>
+      </div>
+      <div class="roster-actions">
+        <button class="roster-action-btn" data-action="mention" title="Mention">💬</button>
+        <button class="roster-action-btn" data-action="died"    title="Died">💀</button>
+        <button class="roster-action-btn" data-action="good"    title="Good thing">👍</button>
+      </div>
+    </div>
+    <div class="roster-entry">
+      <div class="roster-fields">
+        <div class="roster-name" contenteditable="true" placeholder="Name"></div>
+        <div class="roster-class" contenteditable="true" placeholder="Class"></div>
+      </div>
+      <div class="roster-actions">
+        <button class="roster-action-btn" data-action="mention" title="Mention">💬</button>
+        <button class="roster-action-btn" data-action="died"    title="Died">💀</button>
+        <button class="roster-action-btn" data-action="good"    title="Good thing">👍</button>
+      </div>
+    </div>
+    <div class="roster-entry">
+      <div class="roster-fields">
+        <div class="roster-name" contenteditable="true" placeholder="Name"></div>
+        <div class="roster-class" contenteditable="true" placeholder="Class"></div>
+      </div>
+      <div class="roster-actions">
+        <button class="roster-action-btn" data-action="mention" title="Mention">💬</button>
+        <button class="roster-action-btn" data-action="died"    title="Died">💀</button>
+        <button class="roster-action-btn" data-action="good"    title="Good thing">👍</button>
+      </div>
+    </div>
+    <div class="roster-entry">
+      <div class="roster-fields">
+        <div class="roster-name" contenteditable="true" placeholder="Name"></div>
+        <div class="roster-class" contenteditable="true" placeholder="Class"></div>
+      </div>
+      <div class="roster-actions">
+        <button class="roster-action-btn" data-action="mention" title="Mention">💬</button>
+        <button class="roster-action-btn" data-action="died"    title="Died">💀</button>
+        <button class="roster-action-btn" data-action="good"    title="Good thing">👍</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESET + QR -->
+<div class="section">
+  <div class="section-label">ADMIN</div>
+  <button class="evt-btn btn-reset" id="reset-btn" style="width:100%;height:60px;flex-direction:row;gap:8px;margin-bottom:8px;">
+    <span class="emoji">🔄</span>
+    <span style="font-size:9px;letter-spacing:1px;">RESET — CLEAR CHAT + RELOAD MAG</span>
+  </button>
+  <div class="btn-grid-2">
+    <button class="evt-btn" id="qr-btn" style="height:60px;flex-direction:row;gap:8px;border-color:var(--cyan-dim);">
+      <span class="emoji">📺</span>
+      <span style="font-size:9px;letter-spacing:1px;">SHARE VIEWER</span>
+    </button>
+    <button class="evt-btn" id="qr-chat-btn" style="height:60px;flex-direction:row;gap:8px;border-color:var(--cyan-dim);">
+      <span class="emoji">💬</span>
+      <span style="font-size:9px;letter-spacing:1px;">SHARE CHAT</span>
+    </button>
+  </div>
+</div>
+
+<!-- QR overlay — viewer -->
+<div id="qr-overlay" style="display:none;position:fixed;inset:0;background:rgba(5,13,20,0.96);z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:var(--cyan);">SHARE VIEWER SCREEN</div>
+  <div id="qr-canvas-wrap" style="background:#fff;padding:14px;border-radius:6px;"></div>
+  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">sooksookshootschat.web.app/viewer</div>
+  <button onclick="document.getElementById('qr-overlay').style.display='none';"
+    style="margin-top:8px;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;padding:12px 28px;background:transparent;border:1px solid var(--slate-border);color:var(--text-dim);border-radius:4px;cursor:pointer;">
+    CLOSE
+  </button>
+</div>
+
+<!-- QR overlay — chat -->
+<div id="qr-chat-overlay" style="display:none;position:fixed;inset:0;background:rgba(5,13,20,0.96);z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:var(--cyan);">SHARE LIVE CHAT</div>
+  <div id="qr-chat-canvas-wrap" style="background:#fff;padding:14px;border-radius:6px;"></div>
+  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">sooksookshootschat.web.app/chat</div>
+  <button onclick="document.getElementById('qr-chat-overlay').style.display='none';"
+    style="margin-top:8px;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;padding:12px 28px;background:transparent;border:1px solid var(--slate-border);color:var(--text-dim);border-radius:4px;cursor:pointer;">
+    CLOSE
+  </button>
+</div>
+
+<div class="conn-status" id="conn-status">CONNECTING...</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp }                       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, update, push, remove, onValue }
+                                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // TODO: fill in real Firebase config
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyBTooaaCpb0S7acg4rINHMFjYMmTcY9Kfw",
+    authDomain:        "sooksookshootschat.firebaseapp.com",
+    databaseURL:       "https://sooksookshootschat-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "sooksookshootschat",
+    storageBucket:     "sooksookshootschat.firebasestorage.app",
+    messagingSenderId: "396837120203",
+    appId:             "1:396837120203:web:30ca8996a1c4fdfc83534e"
+  };
+
+  // TODO: Cloud Run backend URL
+  const CLOUD_RUN_URL = "https://sooksook-chat-396837120203.us-central1.run.app";
+
+  const MAX_VIEWERS = 247;
+  const VIEWER_INCREMENTS = [2, 3, 5, 7, 11, 13, 17];
+
+  const KIM_DONATIONS = {
+    hit:             100,
+    miss:             50,
+    crit:           1000,
+    ceecee:          200,
+    knife:           500,
+    relay:           100,
+    party_down:        0,
+    hero_point:      500,
+    party_agrees:    200,
+    party_disagrees:  50,
+    viewer_bump:       0,
+    kim_donation:    100
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db  = getDatabase(app);
+
+  // ── State kept in local storage (survives refresh/tab close) ──
+  const stateKeys = { viewers: "ctl_viewers", kim: "ctl_kim", mag: "ctl_mag", roster: "ctl_roster" };
+  let viewers    = parseInt(localStorage.getItem(stateKeys.viewers) || "14");
+  let kimTotal   = parseInt(localStorage.getItem(stateKeys.kim)    || "0");
+  let magCurrent = parseInt(localStorage.getItem(stateKeys.mag)    || "20");
+  const MAG_MAX  = 20;
+
+  function saveState() {
+    localStorage.setItem(stateKeys.viewers, viewers);
+    localStorage.setItem(stateKeys.kim, kimTotal);
+    localStorage.setItem(stateKeys.mag, magCurrent);
+  }
+
+  function saveRoster() {
+    const data = [...document.querySelectorAll(".roster-entry")].map(e => ({
+      name:  e.querySelector(".roster-name")?.textContent.trim()  || "",
+      cls:   e.querySelector(".roster-class")?.textContent.trim() || "",
+    }));
+    localStorage.setItem(stateKeys.roster, JSON.stringify(data));
+  }
+
+  function restoreRoster() {
+    try {
+      const data = JSON.parse(localStorage.getItem(stateKeys.roster) || "[]");
+      const entries = document.querySelectorAll(".roster-entry");
+      data.forEach((d, i) => {
+        if (!entries[i]) return;
+        const nameEl  = entries[i].querySelector(".roster-name");
+        const classEl = entries[i].querySelector(".roster-class");
+        if (nameEl  && d.name) nameEl.textContent  = d.name;
+        if (classEl && d.cls)  classEl.textContent = d.cls;
+      });
+    } catch (_) {}
+  }
+
+  function clearRoster() {
+    localStorage.removeItem(stateKeys.roster);
+    document.querySelectorAll(".roster-name, .roster-class").forEach(el => el.textContent = "");
+  }
+
+  restoreRoster();
+  document.querySelectorAll(".roster-name, .roster-class").forEach(el => {
+    el.addEventListener("input", saveRoster);
+  });
+  document.getElementById("clear-roster-btn").addEventListener("click", clearRoster);
+
+  function deductBullet() {
+    if (magCurrent > 0) magCurrent--;
+    saveState();
+    update(ref(db, "stream"), { magCurrent, magMax: MAG_MAX });
+  }
+
+  // ── Greeting messages ──
+  const GREETINGS = [
+    { user: "KimSuperfan99",        text: "안녕하세요 sookers!! 화이팅!! 💛" },
+    { user: "Anonymous_Viewer_847", text: "👁️" },
+    { user: "skitterfan22",         text: "wait is he setting up??" },
+    { user: "xX_VeskWarrior_Xx",    text: "here we go again" },
+    { user: "KimSuperfan99",        text: "OUR BOY IS LIVE!! 우리 SookSook!! 💛💛" },
+  ];
+
+  async function sendGreetings() {
+    const now = Date.now();
+    for (let i = 0; i < GREETINGS.length; i++) {
+      await push(ref(db, "chat/messages"), { ...GREETINGS[i], ts: now + i * 500 });
+    }
+  }
+
+  // ── UI updates ──
+  function updateStatusBar() {
+    document.getElementById("status-viewers").textContent = viewers;
+    document.getElementById("status-kim").textContent     = `${kimTotal} cr`;
+  }
+
+  updateStatusBar();
+
+  // Push initial state to RTDB on load
+  update(ref(db, "stream"), { magCurrent, magMax: MAG_MAX });
+
+  // Send greetings if chat is empty
+  const chatSnap = await get(ref(db, "chat/messages"));
+  if (!chatSnap.exists()) await sendGreetings();
+
+  // ── Firebase presence ──
+  onValue(ref(db, ".info/connected"), snap => {
+    const el = document.getElementById("conn-status");
+    if (snap.val()) {
+      el.textContent = "CONNECTED";
+      el.className = "conn-status connected";
+    } else {
+      el.textContent = "DISCONNECTED — events queued";
+      el.className = "conn-status error";
+    }
+  });
+
+  // ── Fire event to Cloud Run + update RTDB ──
+  async function fireEvent(eventType, extra = {}) {
+    const rosterSlots = [...document.querySelectorAll(".roster-entry")]
+      .map(e => {
+        const n = e.querySelector(".roster-name")?.textContent.trim();
+        const c = e.querySelector(".roster-class")?.textContent.trim();
+        return n ? (c ? `${n} (${c})` : n) : null;
+      })
+      .filter(Boolean);
+
+    const payload = {
+      event:       eventType,
+      viewerCount: viewers,
+      kimTotal,
+      rangeFeet:   parseInt(document.getElementById("range-slider").value),
+      partyRoster: rosterSlots,
+      ts:          Date.now(),
+      ...extra
+    };
+
+    // Optimistic UI: update RTDB state immediately
+    await update(ref(db, "stream"), {
+      viewerCount: viewers,
+      kimTotal,
+      rangeFeet: payload.rangeFeet,
+      lastEvent: eventType,
+      lastEventTs: payload.ts
+    });
+
+    // Kick Cloud Run to generate chat responses
+    try {
+      await fetch(`${CLOUD_RUN_URL}/event`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn("Cloud Run unreachable — event logged to RTDB only", err);
+    }
+  }
+
+  // ── Event buttons ──
+  document.querySelectorAll(".evt-btn[data-event]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const eventType = btn.dataset.event;
+
+      // Kim donation auto-trigger
+      const donation = KIM_DONATIONS[eventType] || 0;
+      if (donation > 0) {
+        kimTotal += donation;
+        // Hero Point fires x3
+        if (eventType === "hero_point") kimTotal += donation * 2;
+        saveState();
+        updateStatusBar();
+        document.getElementById("kim-donation-amount").textContent = `${donation} cr`;
+      }
+
+      // Viewer bump — non-round increment, ceiling 247
+      if (eventType === "viewer_bump") {
+        const bump = VIEWER_INCREMENTS[Math.floor(Math.random() * VIEWER_INCREMENTS.length)];
+        viewers = Math.min(MAX_VIEWERS, viewers + bump);
+        saveState();
+        updateStatusBar();
+      }
+
+      // Deduct bullet on shot events
+      if (["hit", "miss", "crit"].includes(eventType)) deductBullet();
+
+      btn.classList.add("flashing");
+      btn.addEventListener("animationend", () => btn.classList.remove("flashing"), { once: true });
+
+      await fireEvent(eventType, { kimDonation: donation });
+    });
+  });
+
+  // ── Range slider ──
+  const rangeSlider  = document.getElementById("range-slider");
+  const rangeDisplay = document.getElementById("range-display");
+
+  rangeSlider.addEventListener("input", () => {
+    const v = parseInt(rangeSlider.value);
+    rangeDisplay.textContent = `${v}ft`;
+    rangeDisplay.className = "range-value-display";
+    if (v < 120)      rangeDisplay.classList.add("green");
+    else if (v < 160) rangeDisplay.classList.add("yellow");
+    else              rangeDisplay.classList.add("red");
+
+    // Debounce RTDB write
+    clearTimeout(rangeSlider._debounce);
+    rangeSlider._debounce = setTimeout(() => {
+      update(ref(db, "stream"), { rangeFeet: v });
+    }, 300);
+  });
+
+  // ── Mark toggle ──
+  let marked = false;
+  const markBtn   = document.getElementById("mark-btn");
+  const markLabel = document.getElementById("mark-label");
+
+  markBtn.addEventListener("click", async () => {
+    marked = !marked;
+    markLabel.textContent = marked ? "TARGET MARKED" : "NO TARGET";
+    markBtn.classList.toggle("marked", marked);
+    update(ref(db, "stream"), { markStatus: marked ? "TARGET MARKED" : "NO TARGET" });
+    if (marked) await fireEvent("target_marked");
+  });
+
+  // ── PTT ──
+  const pttBtn   = document.getElementById("ptt-btn");
+  const pttLabel = document.getElementById("ptt-label");
+  let recognition = null;
+  let pttActive   = false;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    pttLabel.textContent = "SPEECH API NOT SUPPORTED";
+    pttBtn.disabled = true;
+  }
+
+  function startPTT() {
+    if (pttActive || !SpeechRecognition) return;
+    pttActive   = true;
+    recognition = new SpeechRecognition();
+    recognition.lang            = "en-US";
+    recognition.continuous      = false;
+    recognition.interimResults  = false;
+
+    recognition.onstart = () => {
+      pttBtn.classList.add("recording");
+      pttLabel.textContent = "LISTENING...";
+    };
+
+    recognition.onresult = async (e) => {
+      const transcript = e.results[0][0].transcript.trim();
+      pttLabel.textContent = `"${transcript}"`;
+      const payload = {
+        transcript,
+        viewerCount: viewers,
+        kimTotal,
+        rangeFeet:   parseInt(rangeSlider.value),
+        partyRoster: [...document.querySelectorAll(".roster-entry")]
+          .map(e => {
+            const n = e.querySelector(".roster-name")?.textContent.trim();
+            const c = e.querySelector(".roster-class")?.textContent.trim();
+            return n ? (c ? `${n} (${c})` : n) : null;
+          }).filter(Boolean)
+      };
+      // Write PTT event + transcript to stream so chat overlay can display it
+      update(ref(db, "stream"), {
+        lastEvent:        "ptt",
+        lastEventTs:      Date.now(),
+        lastPttTranscript: transcript,
+      });
+      try {
+        await fetch(`${CLOUD_RUN_URL}/ptt`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.warn("PTT send failed", err);
+      }
+      setTimeout(() => { pttLabel.textContent = "HOLD TO RECORD"; }, 3000);
+    };
+
+    recognition.onerror = (e) => {
+      pttLabel.textContent = e.error === "no-speech" ? "NO SPEECH DETECTED" : `ERROR: ${e.error}`;
+      setTimeout(() => { pttLabel.textContent = "HOLD TO RECORD"; }, 2000);
+    };
+
+    recognition.onend = () => {
+      pttActive = false;
+      pttBtn.classList.remove("recording");
+    };
+
+    recognition.start();
+  }
+
+  function stopPTT() {
+    if (recognition && pttActive) recognition.stop();
+  }
+
+  pttBtn.addEventListener("contextmenu", e => e.preventDefault());
+  pttBtn.addEventListener("touchstart",  e => { e.preventDefault(); startPTT(); }, { passive: false });
+  pttBtn.addEventListener("touchend",    e => { e.preventDefault(); stopPTT();  }, { passive: false });
+  pttBtn.addEventListener("mousedown",   startPTT);
+  pttBtn.addEventListener("mouseup",     stopPTT);
+
+  // ── Scope toggle ──
+  let scopeOn = true;
+  const scopeBtn   = document.getElementById('scope-toggle-btn');
+  const scopeLabel = document.getElementById('scope-toggle-label');
+  const scopeIcon  = document.getElementById('scope-toggle-icon');
+
+  scopeBtn.addEventListener('click', async () => {
+    scopeOn = !scopeOn;
+    scopeLabel.textContent = scopeOn ? 'SCOPE — ON' : 'OPERATIVE CAM — FULL';
+    scopeIcon.textContent  = scopeOn ? '🔭' : '📷';
+    scopeBtn.classList.toggle('cam-mode', !scopeOn);
+    update(ref(db, 'stream'), { scopeMode: scopeOn ? 'scope' : 'cam' });
+    if (scopeOn) await fireEvent('scope_on');
+  });
+
+  // ── Reset ──
+  document.getElementById("reset-btn").addEventListener("click", async () => {
+    if (!confirm("Reset? This clears chat, reloads the mag and resets viewers.")) return;
+    magCurrent = MAG_MAX;
+    viewers    = 13;
+    kimTotal   = 2750;
+    saveState();
+    updateStatusBar();
+    await remove(ref(db, "chat/messages"));
+    await update(ref(db, "stream"), { magCurrent: MAG_MAX, magMax: MAG_MAX, viewerCount: 13, kimTotal: 2750 });
+    await sendGreetings();
+  });
+
+  // ── QR codes ──
+  async function showQR(overlayId, wrapId, url) {
+    const overlay = document.getElementById(overlayId);
+    const wrap    = document.getElementById(wrapId);
+    overlay.style.display = 'flex';
+    if (wrap.dataset.rendered) return;
+    const { default: QRCode } = await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm');
+    const canvas = document.createElement('canvas');
+    await QRCode.toCanvas(canvas, url, { width: 240, margin: 1 });
+    wrap.innerHTML = '';
+    wrap.appendChild(canvas);
+    wrap.dataset.rendered = '1';
+  }
+
+  document.getElementById('qr-btn').addEventListener('click', () =>
+    showQR('qr-overlay', 'qr-canvas-wrap', 'https://sooksookshootschat.web.app/viewer'));
+
+  document.getElementById('qr-chat-btn').addEventListener('click', () =>
+    showQR('qr-chat-overlay', 'qr-chat-canvas-wrap', 'https://sooksookshootschat.web.app/chat'));
+
+  // ── Party action buttons ──
+  document.querySelectorAll(".roster-action-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const entry = btn.closest(".roster-entry");
+      const name  = entry.querySelector(".roster-name")?.textContent.trim();
+      const cls   = entry.querySelector(".roster-class")?.textContent.trim() || "";
+      if (!name) return;
+      btn.classList.add("flashing");
+      btn.addEventListener("animationend", () => btn.classList.remove("flashing"), { once: true });
+      await fireEvent("party_member", {
+        memberName:   name,
+        memberClass:  cls,
+        memberAction: btn.dataset.action,
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

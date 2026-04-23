@@ -1,0 +1,17 @@
+{
+  "name": "SookSook Shoots Stuff",
+  "short_name": "SookSook",
+  "description": "SookSook Sixscope — LIVE",
+  "start_url": "/viewer/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0a1520",
+  "theme_color": "#00e5ff",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

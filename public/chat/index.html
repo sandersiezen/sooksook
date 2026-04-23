@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SookSook — Live Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan:         #00e5ff;
+    --cyan-dim:     #00b8cc;
+    --slate:        #0a1520;
+    --slate-mid:    #0d1f2d;
+    --slate-light:  #152535;
+    --slate-border: #1e3448;
+    --text-dim:     #4a7a8a;
+    --text-mid:     #7ab8c8;
+    --text-bright:  #b8e8f0;
+    --kim:          #ff9f43;
+    --vesk:         #ff6b6b;
+    --green:        #7bed9f;
+    --red-live:     #ff3b3b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html { height: 100%; }
+
+  body {
+    background: var(--slate);
+    font-family: 'Exo 2', sans-serif;
+    color: var(--text-bright);
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HOLOGRAPHIC GRID ── */
+  .holo-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── NAME PICKER ── */
+  #name-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--slate);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    gap: 20px;
+    padding: 32px 24px;
+  }
+
+  #name-screen.hidden { display: none; }
+
+  .picker-logo {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .picker-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    text-shadow: 0 0 24px rgba(0,229,255,0.5);
+  }
+
+  .picker-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 5px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .picker-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  #name-input {
+    background: var(--slate-light);
+    border: 1px solid var(--slate-border);
+    border-radius: 3px;
+    color: var(--cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 30px;
+    padding: 14px 20px;
+    text-align: center;
+    width: 100%;
+    max-width: 300px;
+    outline: none;
+    letter-spacing: 2px;
+  }
+
+  #name-input:focus {
+    border-color: var(--cyan-dim);
+    box-shadow: 0 0 0 1px var(--cyan-dim)44, inset 0 0 24px rgba(0,229,255,0.04);
+  }
+
+  #name-error {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--vesk);
+    text-align: center;
+    min-height: 14px;
+    margin-top: -8px;
+  }
+
+  #join-btn {
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 14px 48px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  #join-btn:active { background: rgba(0,229,255,0.12); }
+
+  /* ── COLOUR SWATCHES ── */
+  .colour-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 280px;
+  }
+
+  .swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s, border-color 0.12s, box-shadow 0.12s;
+    flex-shrink: 0;
+  }
+
+  .swatch:active { transform: scale(0.88); }
+
+  .swatch.selected {
+    border-color: rgba(255,255,255,0.8);
+    transform: scale(1.18);
+    box-shadow: 0 0 10px var(--swatch-color, #fff);
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--slate-mid);
+    border-bottom: 1px solid var(--slate-border);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .topbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.3;
+  }
+
+  .topbar-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--red-live);
+    box-shadow: 0 0 6px var(--red-live);
+    animation: pulse-red 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+
+  .viewer-stat { color: var(--cyan-dim); }
+  .viewer-stat span { color: var(--cyan); }
+
+  #name-chip {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--slate-border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  /* ── EVENT STRIP ── */
+  #event-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 14px;
+    background: var(--slate-light);
+    border-bottom: 1px solid var(--slate-border);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 9;
+    min-height: 30px;
+  }
+
+  #event-strip-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #ptt-transcript {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 15px;
+    color: var(--text-mid);
+    font-style: italic;
+    padding-left: 2px;
+    line-height: 1.3;
+  }
+
+  .event-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  #event-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--text-mid);
+    flex: 1;
+    transition: color 0.4s;
+  }
+
+  #event-value.flash { color: var(--cyan); }
+
+  .event-meta {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  /* ── CHAT FEED ── */
+  #chat-feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+  }
+
+  #chat-feed::-webkit-scrollbar { width: 3px; }
+  #chat-feed::-webkit-scrollbar-track { background: transparent; }
+  #chat-feed::-webkit-scrollbar-thumb { background: var(--slate-border); border-radius: 2px; }
+
+  .msg {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: msg-in 0.18s ease;
+  }
+
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .msg-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .msg-user {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .donation-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    background: rgba(255,159,67,0.12);
+    color: var(--kim);
+    border: 1px solid rgba(255,159,67,0.3);
+    border-radius: 2px;
+    padding: 1px 6px;
+    letter-spacing: 1px;
+  }
+
+  .msg-text {
+    font-size: 20px;
+    color: var(--text-bright);
+    line-height: 1.4;
+    padding-left: 2px;
+    word-break: break-word;
+  }
+
+  .msg-text.is-donation { color: var(--kim); font-weight: 600; }
+  .msg-text.is-anon     { font-size: 26px; letter-spacing: 4px; color: #3a6a8a; }
+  .msg-text.is-spam     { font-size: 16px; color: #4a4a5a; font-style: italic; }
+
+  /* ── EVENT DIVIDERS in feed ── */
+  .event-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0 2px;
+    flex-shrink: 0;
+  }
+
+  .event-divider-line {
+    flex: 1;
+    height: 1px;
+  }
+
+  .event-divider-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  /* ── INPUT BAR ── */
+  .input-bar {
+    background: var(--slate-mid);
+    border-top: 1px solid var(--slate-border);
+    padding: 10px 14px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  #chat-input {
+    flex: 1;
+    background: var(--slate-light);
+    border: 1px solid var(--slate-border);
+    border-radius: 3px;
+    color: var(--text-bright);
+    font-family: 'Exo 2', sans-serif;
+    font-size: 21px;
+    padding: 10px 12px;
+    outline: none;
+    min-width: 0;
+    transition: border-color 0.15s;
+  }
+
+  #chat-input::placeholder { color: var(--text-dim); }
+  #chat-input:focus { border-color: var(--cyan-dim); }
+
+  #send-btn {
+    background: transparent;
+    border: 1px solid var(--cyan-dim);
+    color: var(--cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 0 16px;
+    cursor: pointer;
+    border-radius: 2px;
+    flex-shrink: 0;
+    transition: background 0.12s;
+  }
+
+  #send-btn:active { background: rgba(0,229,255,0.12); }
+  #send-btn:disabled { opacity: 0.35; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="holo-grid"></div>
+
+<!-- ── NAME PICKER ── -->
+<div id="name-screen">
+  <div class="picker-logo">
+    <div class="picker-title">SOOKSOOK SHOOTS STUFF</div>
+    <div class="picker-sub">LIVE CHAT</div>
+  </div>
+  <div class="picker-label">ENTER YOUR CALLSIGN</div>
+  <input id="name-input" type="text" maxlength="20" placeholder="YourName"
+         autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+  <div id="name-error">&nbsp;</div>
+  <div class="picker-label" style="margin-top:4px;">CHOOSE YOUR COLOUR</div>
+  <div class="colour-row" id="colour-row"></div>
+  <button id="join-btn">JOIN CHAT</button>
+</div>
+
+<!-- ── CHAT UI ── -->
+<div id="chat-ui" style="display:none; flex-direction:column; height:100%; flex:1;">
+
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="live-dot"></div>
+      SOOKSOOK CHAT
+    </div>
+    <div class="topbar-right">
+      <span class="viewer-stat">👁 <span id="viewer-count">—</span></span>
+      <span id="name-chip" title="Change callsign"></span>
+    </div>
+  </div>
+
+  <div id="event-strip">
+    <div id="event-strip-main">
+      <span class="event-label">LAST EVENT</span>
+      <span id="event-value">— awaiting action —</span>
+      <span class="event-meta" id="range-display"></span>
+    </div>
+    <div id="ptt-transcript" style="display:none;"></div>
+  </div>
+
+  <div id="chat-feed"></div>
+
+  <div class="input-bar">
+    <input id="chat-input" type="text" placeholder="say something to chat…" maxlength="200" autocomplete="off">
+    <button id="send-btn">SEND</button>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded, onValue }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBTooaaCpb0S7acg4rINHMFjYMmTcY9Kfw",
+  authDomain:        "sooksookshootschat.firebaseapp.com",
+  databaseURL:       "https://sooksookshootschat-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "sooksookshootschat",
+  storageBucket:     "sooksookshootschat.firebasestorage.app",
+  messagingSenderId: "396837120203",
+  appId:             "1:396837120203:web:30ca8996a1c4fdfc83534e"
+};
+
+const CLOUD_RUN_URL = "https://sooksook-chat-396837120203.us-central1.run.app";
+
+const BOT_NAMES = new Set([
+  "kimsuperfan99", "xx_veskwarrior_xx", "skitterfan22",
+  "ch4tbot_5000", "anonymous_viewer_847", "velvet_sniper",
+  "sookieforever", "critmathcorp", "sooksook", "sooksooksixscope"
+]);
+
+const BOT_COLORS = {
+  "KimSuperfan99":        "#ff9f43",
+  "xX_VeskWarrior_Xx":   "#ff6b6b",
+  "skitterfan22":         "#7bed9f",
+  "ch4tbot_5000":         "#555555",
+  "Anonymous_Viewer_847": "#2a4a5a",
+};
+
+const USER_COLORS = [
+  "#e040fb", "#ffeb3b", "#26c6da", "#7c4dff",
+  "#f06292", "#80cbc4", "#ff7043", "#b2ff59",
+];
+
+const EVENT_LABELS = {
+  hit:             "HIT",
+  miss:            "MISS",
+  crit:            "CRITICAL HIT",
+  ceecee:          "CEECEE MODE",
+  knife:           "KNIFE THROW",
+  relay:           "RELAY MENTION",
+  party_down:      "PARTY DOWN",
+  hero_point:      "HERO POINT",
+  party_agrees:    "PARTY AGREES",
+  party_disagrees: "PARTY DISAGREES",
+  viewer_bump:     "VIEWER SPIKE",
+  kim_donation:    "KIM DONATES",
+  scope_on:        "SCOPE CAM",
+  scope_off:       "OPERATIVE CAM",
+  target_marked:   "TARGET MARKED",
+  ptt:             "PTT",
+  ambient:         "AMBIENT",
+  party_member:    "PARTY MEMBER",
+};
+
+const EVENT_COLORS = {
+  hit:          "#00ff88",
+  crit:         "#ffd700",
+  miss:         "#ff6b6b",
+  ceecee:       "#00e5ff",
+  knife:        "#ff6b6b",
+  relay:        "#7bed9f",
+  party_down:   "#ff6b6b",
+  hero_point:   "#ffd700",
+  target_marked:"#ffdd00",
+  ptt:          "#b8e8f0",
+  party_member: "#7ab8c8",
+};
+
+function nameColor(name) {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return USER_COLORS[h % USER_COLORS.length];
+}
+
+// ── Colour swatches ──
+let selectedColor = USER_COLORS[0];
+
+const colourRow = document.getElementById("colour-row");
+USER_COLORS.forEach(hex => {
+  const sw = document.createElement("div");
+  sw.className = "swatch";
+  sw.style.background = hex;
+  sw.style.setProperty("--swatch-color", hex);
+  sw.dataset.color = hex;
+  sw.addEventListener("click", () => {
+    selectedColor = hex;
+    colourRow.querySelectorAll(".swatch").forEach(s => s.classList.remove("selected"));
+    sw.classList.add("selected");
+  });
+  colourRow.appendChild(sw);
+});
+
+function syncSwatchToName(name) {
+  const auto = nameColor(name);
+  selectedColor = auto;
+  colourRow.querySelectorAll(".swatch").forEach(s => {
+    s.classList.toggle("selected", s.dataset.color === auto);
+  });
+}
+
+function validateName(raw) {
+  const name = raw.trim();
+  if (name.length < 2)  return "Too short — minimum 2 characters";
+  if (name.length > 20) return "Too long — maximum 20 characters";
+  if (BOT_NAMES.has(name.toLowerCase())) return "That callsign is taken";
+  return null;
+}
+
+// ── State ──
+let myName  = null;
+let myColor = null;
+let streamState = { viewerCount: 13, rangeFeet: 60, lastEvent: "ambient", kimTotal: 0, lastPttTranscript: "" };
+let botReplyCooldown = false;
+let initialStreamLoad = true;
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db  = getDatabase(app);
+
+// ── Name picker ──
+const nameScreen = document.getElementById("name-screen");
+const chatUI     = document.getElementById("chat-ui");
+const nameInput  = document.getElementById("name-input");
+const nameError  = document.getElementById("name-error");
+
+function tryJoin() {
+  const err = validateName(nameInput.value);
+  if (err) { nameError.textContent = err; return; }
+  const name  = nameInput.value.trim();
+  const color = selectedColor;
+  localStorage.setItem("sooksook_chat_name",  name);
+  localStorage.setItem("sooksook_chat_color", color);
+  enterChat(name, color);
+}
+
+// Auto-select swatch as user types their name
+nameInput.addEventListener("input", () => {
+  if (nameInput.value.trim().length >= 2) syncSwatchToName(nameInput.value.trim());
+});
+
+document.getElementById("join-btn").addEventListener("click", tryJoin);
+nameInput.addEventListener("keydown", e => { if (e.key === "Enter") tryJoin(); });
+
+function enterChat(name, color) {
+  myName  = name;
+  myColor = color;
+  nameScreen.classList.add("hidden");
+  chatUI.style.display = "flex";
+
+  const chip = document.getElementById("name-chip");
+  chip.textContent = name;
+  chip.style.color = color;
+  chip.style.borderColor = color + "55";
+
+  startListeners();
+}
+
+document.getElementById("name-chip").addEventListener("click", () => {
+  localStorage.removeItem("sooksook_chat_name");
+  localStorage.removeItem("sooksook_chat_color");
+  chatUI.style.display = "none";
+  nameScreen.classList.remove("hidden");
+  nameInput.value = "";
+  nameError.textContent = " ";
+});
+
+const savedName  = localStorage.getItem("sooksook_chat_name");
+const savedColor = localStorage.getItem("sooksook_chat_color");
+if (savedName && !validateName(savedName)) {
+  enterChat(savedName, savedColor || nameColor(savedName));
+}
+
+// ── Firebase listeners ──
+function startListeners() {
+  onValue(ref(db, "stream"), snap => {
+    const s = snap.val() || {};
+    const prevEvent = streamState.lastEvent;
+
+    streamState = {
+      viewerCount:       s.viewerCount        ?? 13,
+      rangeFeet:         s.rangeFeet          ?? 60,
+      lastEvent:         s.lastEvent          ?? "ambient",
+      kimTotal:          s.kimTotal           ?? 0,
+      lastPttTranscript: s.lastPttTranscript  ?? "",
+    };
+
+    document.getElementById("viewer-count").textContent = streamState.viewerCount;
+    document.getElementById("range-display").textContent = `${streamState.rangeFeet}ft`;
+
+    const label = EVENT_LABELS[streamState.lastEvent] || streamState.lastEvent.toUpperCase();
+    const evtEl = document.getElementById("event-value");
+    const pttLine = document.getElementById("ptt-transcript");
+
+    if (streamState.lastEvent === "ptt" && streamState.lastPttTranscript) {
+      evtEl.textContent = "PTT";
+      pttLine.textContent = `SookSook said "${streamState.lastPttTranscript}"`;
+      pttLine.style.display = "block";
+    } else {
+      evtEl.textContent = label;
+      pttLine.style.display = "none";
+    }
+
+    if (!initialStreamLoad && streamState.lastEvent !== prevEvent) {
+      const color = EVENT_COLORS[streamState.lastEvent] || "var(--cyan)";
+      evtEl.style.color = color;
+      setTimeout(() => { evtEl.style.color = ""; }, 2500);
+      insertEventDivider(label, streamState.lastEvent);
+    }
+    initialStreamLoad = false;
+  });
+
+  onChildAdded(ref(db, "chat/messages"), snap => {
+    const msg = snap.val();
+    if (msg) renderMessage(msg);
+  });
+}
+
+// ── Render message ──
+function renderMessage(msg) {
+  const feed = document.getElementById("chat-feed");
+  const isAnon     = msg.user === "Anonymous_Viewer_847";
+  const isSpam     = msg.user === "ch4tbot_5000";
+  const isDonation = msg.type === "donation";
+  const color = BOT_COLORS[msg.user] ?? msg.color ?? nameColor(msg.user || "viewer");
+
+  const div = document.createElement("div");
+  div.className = "msg";
+
+  const header = document.createElement("div");
+  header.className = "msg-header";
+
+  const userSpan = document.createElement("span");
+  userSpan.className = "msg-user";
+  userSpan.style.color = color;
+  userSpan.textContent = msg.user || "viewer";
+  header.appendChild(userSpan);
+
+  if (isDonation && msg.amount) {
+    const badge = document.createElement("span");
+    badge.className = "donation-badge";
+    badge.textContent = `♦ ${msg.amount} cr`;
+    header.appendChild(badge);
+  }
+
+  const textDiv = document.createElement("div");
+  textDiv.className = "msg-text";
+  if (isDonation) textDiv.classList.add("is-donation");
+  if (isAnon)     textDiv.classList.add("is-anon");
+  if (isSpam)     textDiv.classList.add("is-spam");
+  textDiv.textContent = msg.text || "";
+
+  div.appendChild(header);
+  div.appendChild(textDiv);
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function insertEventDivider(label, eventType) {
+  const feed  = document.getElementById("chat-feed");
+  const color = EVENT_COLORS[eventType] || "#1e3448";
+
+  const div = document.createElement("div");
+  div.className = "event-divider";
+  div.innerHTML = `
+    <div class="event-divider-line" style="background:${color}40;"></div>
+    <div class="event-divider-text" style="color:${color};">${label}</div>
+    <div class="event-divider-line" style="background:${color}40;"></div>
+  `;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+// ── Send message ──
+const chatInput = document.getElementById("chat-input");
+const sendBtn   = document.getElementById("send-btn");
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text || !myName) return;
+
+  chatInput.value = "";
+  sendBtn.disabled = true;
+
+  await push(ref(db, "chat/messages"), {
+    user:  myName,
+    type:  "message",
+    text:  text,
+    color: myColor,
+    ts:    Date.now(),
+  });
+
+  sendBtn.disabled = false;
+  chatInput.focus();
+
+  // Trigger bot reactions with cooldown
+  if (!botReplyCooldown) {
+    botReplyCooldown = true;
+    setTimeout(() => { botReplyCooldown = false; }, 10000);
+    fetch(`${CLOUD_RUN_URL}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username:    myName,
+        text:        text,
+        viewerCount: streamState.viewerCount,
+        rangeFeet:   streamState.rangeFeet,
+        lastEvent:   streamState.lastEvent,
+        kimTotal:    streamState.kimTotal,
+      }),
+    }).catch(() => {});
+  }
+}
+
+sendBtn.addEventListener("click", sendMessage);
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+</script>
+</body>
+</html>
