@@ -732,7 +732,7 @@ function renderMessage(msg) {
   div.appendChild(header);
   div.appendChild(textDiv);
   feed.appendChild(div);
-  feed.scrollTop = feed.scrollHeight;
+  requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
 }
 
 function insertEventDivider(label, eventType) {
@@ -747,7 +747,7 @@ function insertEventDivider(label, eventType) {
     <div class="event-divider-line" style="background:${color}40;"></div>
   `;
   feed.appendChild(div);
-  feed.scrollTop = feed.scrollHeight;
+  requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
 }
 
 // ── Send message ──

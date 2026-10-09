@@ -12,7 +12,7 @@ A chatty, deluded, narcissistic streamer who is simultaneously the deadliest sho
 
 | Weapon | Name | Arms | Notes |
 |--------|------|------|-------|
-| Assassin Rifle | **Sixscope** | Arms 1+2 (active pair) | Main content. Scope cam named after it. 120ft first increment. |
+| Assassin Rifle | **Swipe Left** | Arms 1+2 (active pair) | Main content. Scope cam (SIXSCOPE™) named after SookSook's callsign. 120ft first increment. |
 | Semi-auto Pistol | **CeeCeeBee** | Arm 3 | Always loaded. Always ready. Oversized narrative, standard mechanics. Named after his pronunciation of CQB. |
 | Knife x2 | Unnamed | Arm 4 (Stabby) | Chaos content. Thrown at 10ft for pure style. Objectively wrong call. Always worth it. |
 | Comm unit (face cam) | — | Arm 5 (The Director) | Always extended. Always streaming. SIG: LOW. |

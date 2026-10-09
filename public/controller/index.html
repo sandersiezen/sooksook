@@ -1022,8 +1022,23 @@
     kimTotal   = 2750;
     saveState();
     updateStatusBar();
+
+    // Reset scope to operative cam
+    scopeOn = false;
+    scopeLabel.textContent = 'OPERATIVE CAM — FULL';
+    scopeIcon.textContent  = '📷';
+    scopeBtn.classList.add('cam-mode');
+
+    // Clear target mark
+    marked = false;
+    markLabel.textContent = 'NO TARGET';
+    markBtn.classList.remove('marked');
+
     await remove(ref(db, "chat/messages"));
-    await update(ref(db, "stream"), { magCurrent: MAG_MAX, magMax: MAG_MAX, viewerCount: 13, kimTotal: 2750 });
+    await update(ref(db, "stream"), {
+      magCurrent: MAG_MAX, magMax: MAG_MAX, viewerCount: 13, kimTotal: 2750,
+      scopeMode: 'cam', markStatus: 'NO TARGET', sessionStart: Date.now(),
+    });
     await sendGreetings();
   });
 

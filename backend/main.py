@@ -2,6 +2,7 @@ import json
 import os
 import time
 import re
+import threading
 
 import firebase_admin
 from firebase_admin import db as rtdb
@@ -40,7 +41,7 @@ KIM_DONATIONS = {
 
 _SYSTEM_INSTRUCTION = """You generate the live chat feed for "SookSook Shoots Stuff", a Starfinder Society tabletop RPG stream with a tiny but devoted audience.
 
-THE STREAMER: SookSook Sixscope — a pink six-armed Skittermander Operative. Genuinely elite sniper. Completely unaware of how good he is. Always mentions the Great Absallom Relay (where he came Runner Up). Narrates everything to chat while also being in active combat. His community is called the Sookers.
+THE STREAMER: SookSook Sixscope — a pink six-armed Skittermander Operative. Genuinely elite sniper. Completely unaware of how good he is. Always mentions the Great Absallom Relay (where he came Runner Up). Narrates everything to chat while also being in active combat. His community is called the Sookers. His Assassin Rifle is called Swipe Left — the scope cam feed from it is labelled SIXSCOPE™ after his callsign.
 
 CHAT CHARACTERS — portray these voices exactly:
 
@@ -68,10 +69,15 @@ CritMathCorp [teal #1abc9c]: Runs live probability calculations on every shot. P
 CANONICAL CALLOUTS (SookSook says these — reference them in chat reactions):
 - On hit: "Chat we are heading for target"
 - On miss: "That guy is hacking my scope"
-- On crit: silence, then "Yeah."
+- On crit: silence, then "Yeah." — chat should name Swipe Left when reacting to crits
 - Switching to CeeCeeBee: "Chat we are going CeeCeeBee today"
 - Knife throw: "Chat we're going full knife" (rare, chaotic)
 - Relay mention: constant, unprompted
+
+WEAPON NAMES — use these when characters reference his gear:
+- Assassin Rifle: Swipe Left (scope cam labelled SIXSCOPE™). On crits, chat calls it out by name.
+- Pistol: CeeCeeBee
+- Knife: unnamed (chat calls it "the knife" or "the blade")
 
 RULES:
 - Viewer count never exceeds 247 concurrent. Currently a small stream.
@@ -99,6 +105,7 @@ OUTPUT FORMAT — return ONLY valid JSON, no markdown, no explanation:
 type is either "message" or "donation". Only KimSuperfan99 sends donations."""
 
 model = GenerativeModel("gemini-2.5-flash", system_instruction=_SYSTEM_INSTRUCTION)
+_gemini_lock = threading.Lock()
 
 
 def get_recent_chat(limit: int = 40) -> str:
@@ -138,7 +145,7 @@ def build_event_prompt(payload: dict) -> str:
         "target_marked":   f"SookSook has a target in his sights at {range_ft}ft ({range_status}). He hasn't fired yet. Chat can feel it. Kim is tense and encouraging. skitterfan22 doesn't fully understand but is hyped. VeskWarrior is leaning in. Anonymous_Viewer_847 watches. Chat is willing him to take the shot.",
         "hit":             f"SookSook just landed a shot at {range_ft}ft ({range_status}). He said \"Chat we are heading for target.\"",
         "miss":            f"SookSook missed. He said \"That guy is hacking my scope.\"",
-        "crit":            f"CRITICAL HIT at {range_ft}ft ({range_status}). SookSook went quiet, then said \"Yeah.\" Chat erupts. Kim's donation fires immediately.",
+        "crit":            f"CRITICAL HIT at {range_ft}ft ({range_status}). Swipe Left just did something impossible. SookSook went quiet, then said \"Yeah.\" Chat erupts. Characters should name the rifle — Swipe Left — when reacting. Kim's donation fires immediately. velvet_sniper is shaken but won't admit it. CritMathCorp's numbers don't explain this. SookieForever cannot cope.",
         "ceecee":          f"SookSook switched to CeeCeeBee (his semi-auto pistol). Said \"Chat we are going CeeCeeBee today.\"",
         "knife":           f"SookSook threw a knife. He said \"Chat we're going full knife.\" Chaotic. Objectively wrong call.",
         "relay":           f"SookSook mentioned the Great Absallom Relay again (where he came Runner Up). Unprompted as always.",
@@ -148,7 +155,7 @@ def build_event_prompt(payload: dict) -> str:
         "party_disagrees": f"The party disagreed with SookSook. Chat keeps receipts.",
         "viewer_bump":     f"The viewer count just ticked up to {viewers}. SookSook didn't notice.",
         "kim_donation":    f"KimSuperfan99 just manually sent a donation of {manual_donation or 100} cr. No specific trigger — she just felt like it. Chat reacts warmly. SookSook reads it out. This is why everyone stays.",
-        "scope_on":        "SookSook just switched back to scope cam — the Sixscope rifle view is live again. Chat settles back into sniper-watch mode. Kim is relieved and focused. VeskWarrior acknowledges we're back to business. skitterfan22 is hyped. Anonymous_Viewer_847 watches. This is the mode chat trusts.",
+        "scope_on":        "SookSook just switched back to scope cam — Swipe Left is live again. Chat settles back into sniper-watch mode. Kim is relieved and focused. VeskWarrior acknowledges we're back to business. skitterfan22 is hyped. Anonymous_Viewer_847 watches. This is the mode chat trusts.",
         "scope_off":       "SookSook switched to operative cam — his face is on screen now. Six arms, pink fur, The Director arm still extended, Gerald probably waving. Chat reacts to actually seeing him. Kim loses it. skitterfan22 is overwhelmed by how cute he is. VeskWarrior makes a dry remark about the face reveal. Anonymous_Viewer_847 doubles up. This is rare — chat notices.",
         "party_member":    (
             f"Party member: {member_name}" + (f" ({member_class})" if member_class else "") + ". " +
@@ -185,28 +192,26 @@ def build_event_prompt(payload: dict) -> str:
 
 
 def call_gemini(prompt: str) -> list[dict]:
-    safety = {
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HARASSMENT:        HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH:       HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-    }
-    response = model.generate_content(
-        prompt,
-        generation_config=GenerationConfig(
-            temperature=0.9,
-            max_output_tokens=2048,
-        ),
-        safety_settings=safety,
-    )
-    raw = response.text.strip()
-
-    # Strip markdown code fences if Gemini wraps the JSON
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
-
-    data = json.loads(raw)
-    return data.get("messages", [])
+    with _gemini_lock:
+        safety = {
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT:        HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH:       HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        response = model.generate_content(
+            prompt,
+            generation_config=GenerationConfig(
+                temperature=0.9,
+                max_output_tokens=2048,
+            ),
+            safety_settings=safety,
+        )
+        raw = response.text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        data = json.loads(raw)
+        return data.get("messages", [])
 
 
 def write_messages_to_rtdb(messages: list[dict]):
@@ -297,7 +302,6 @@ def handle_reply():
 
     try:
         messages = call_gemini(prompt)
-        # Strip any donations that slipped through — user chat never triggers Kim donations
         messages = [m for m in messages if m.get("type") != "donation"]
         write_messages_to_rtdb(messages)
         return jsonify({"ok": True, "count": len(messages)})
@@ -314,4 +318,4 @@ def health():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
